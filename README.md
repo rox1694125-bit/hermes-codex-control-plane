@@ -47,7 +47,21 @@ Run the doctor before the first session:
 python3 scripts/check_control_plane.py /path/to/your-project
 ```
 
-`PASS` means the required 3+3 shape is present. `Warnings` point to placeholders, empty logs, or optional docs. `FAIL` means required files, required sections, or safety hygiene need attention before Codex treats the project as ready.
+Point the doctor at the target project directory, not this repository root. `PASS` means the required 3+3 shape is present. `Warnings` point to placeholders, empty logs, or optional docs and still exit `0`. `FAIL` means required files, required sections, or safety hygiene need attention before Codex treats the project as ready.
+
+Exit codes:
+
+- `0`: no errors, including warning-only projects;
+- `1`: validation errors;
+- `2`: usage or project-path errors.
+
+For JSON output:
+
+```bash
+python3 scripts/check_control_plane.py /path/to/your-project --json
+```
+
+The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`.
 
 Then start a Codex session with:
 
@@ -68,10 +82,11 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
 - `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.
+- `tests/test_check_control_plane.py`: regression tests for pass, warning, failure, safety, JSON, and exit-code behavior.
 
 ## The 3+3 Project Standard
 
-Default project files:
+Default 3+3 project items:
 
 ```text
 AGENTS.md
@@ -122,6 +137,19 @@ It is an operating pattern and starter kit.
 5. Adjust the templates to your organization.
 6. Only then migrate older, more complex projects.
 
+## Maintainer Checks
+
+Run the local verifier and its regression tests before publishing changes:
+
+```bash
+python3 -m py_compile scripts/check_control_plane.py tests/test_check_control_plane.py
+python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
+python3 scripts/check_control_plane.py templates/project-standard
+python3 tests/test_check_control_plane.py
+```
+
+The tests use only the Python standard library.
+
 ## Status
 
-Public v0.1 packaging is in progress. The current focus is making the pattern understandable, reusable, and safe before adding heavier automation.
+Public v0.1 packaging is present. The current focus is v0.2 Protocol Doctor hardening before adding heavier automation.

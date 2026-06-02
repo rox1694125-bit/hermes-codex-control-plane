@@ -44,6 +44,7 @@ agent-skills
 - [ ] Example project is sanitized.
 - [ ] Scripts do not write outside expected target paths.
 - [ ] Protocol Doctor passes on `examples/knowledge-ingestion-agent`.
+- [ ] Protocol Doctor regression tests pass with `python3 tests/test_check_control_plane.py`.
 - [ ] License is present.
 - [ ] GitHub description and topics are set.
 - [ ] First public commit is reviewed before pushing.

@@ -7,10 +7,10 @@ Project startup instructions for Codex/Hermes.
 Use the Hermes development control plane model:
 
 - Codex reads, plans, edits, tests, and verifies.
-- Hermes + Feishu/Lark are runtime execution workers.
+- Hermes + the messaging platform are runtime execution workers.
 - Do not connect Codex directly into live messaging flows unless explicitly requested.
 
-When the user says "启动 Hermes 开发控制台协议", load `hermes-project-operating-manual`. If the work touches Hermes internals, Feishu gateway, profiles, skills, tools, Codex runtime, or Kanban, also load `hermes-architecture`.
+When the user says "启动 Hermes 开发控制台协议", load `hermes-project-operating-manual`. If the work touches Hermes internals, messaging-platform gateways, profiles, skills, tools, Codex runtime, or Kanban, also load `hermes-architecture`.
 
 ## Required Startup Reads
 
@@ -56,4 +56,3 @@ List project-specific checks here.
 # example
 python3 scripts/check_handoff.py
 ```
-

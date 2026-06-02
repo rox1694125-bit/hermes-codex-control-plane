@@ -13,7 +13,16 @@ Goal: make the operating pattern understandable and reusable.
 - Sanitized example project
 - Clear high-risk confirmation rules
 
-## v0.2: Project Migration Helpers
+## v0.2: Protocol Doctor Hardening
+
+Goal: make the standard verifier trustworthy without adding dependencies.
+
+- Fixture-based regression tests
+- Pass, warning, failure, safety, JSON, and exit-code coverage
+- Maintainer check commands in README and quickstart
+- No GitHub Actions yet
+
+## v0.3: Project Migration Helpers
 
 Goal: help existing agent projects adopt the standard.
 
@@ -21,7 +30,7 @@ Goal: help existing agent projects adopt the standard.
 - Legacy-doc mapping guide
 - Examples for content ingestion, support bots, and internal tooling agents
 
-## v0.3: Runtime Integration Patterns
+## v0.4: Runtime Integration Patterns
 
 Goal: document safe bridges without collapsing control and runtime boundaries.
 
@@ -30,7 +39,7 @@ Goal: document safe bridges without collapsing control and runtime boundaries.
 - Kanban worker fleet examples
 - Codex runtime bridge notes
 
-## v0.4: Validation Harness
+## v0.5: Validation Harness
 
 Goal: test whether the protocol actually improves agent work.
 

@@ -50,16 +50,38 @@ Keep them short. Move history and rationale into `docs/DECISIONS.md` and `docs/p
 python3 scripts/check_control_plane.py /path/to/project
 ```
 
+Use the target project path. Do not run this command on the repository root unless the repository itself is the project being checked.
+
 Expected behavior:
 
 - `PASS`: no required errors were found.
-- `Warnings`: placeholders, empty logs, or missing optional docs; useful to fix, but they do not fail.
+- `Warnings`: placeholders, empty logs, or missing optional docs; useful to fix, but they do not fail and exit `0`.
 - `FAIL`: required files, required sections, high-risk confirmation language, or safety hygiene need attention.
+
+Exit codes:
+
+- `0`: no errors, including warning-only projects;
+- `1`: validation errors;
+- `2`: usage or project-path errors.
 
 For agent/CI consumers:
 
 ```bash
 python3 scripts/check_control_plane.py /path/to/project --json
+```
+
+The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`.
+
+Try the bundled example:
+
+```bash
+python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
+```
+
+For maintainers of this repository:
+
+```bash
+python3 tests/test_check_control_plane.py
 ```
 
 ## 5. Start Codex
