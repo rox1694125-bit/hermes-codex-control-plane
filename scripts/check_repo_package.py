@@ -46,10 +46,12 @@ REQUIRED_FILES = (
     "examples/knowledge-ingestion-agent/scripts/run_demo.py",
     "scripts/check_control_plane.py",
     "scripts/check_repo_package.py",
+    "scripts/hccp.py",
     "scripts/init_project_standard.sh",
     "scripts/install_codex_skills.sh",
     "tests/test_check_control_plane.py",
     "tests/test_check_repo_package.py",
+    "tests/test_hccp_cli.py",
     "tests/test_runnable_demo.py",
 )
 REQUIRED_DIRS = (
@@ -62,6 +64,7 @@ REQUIRED_DIRS = (
 README_REFERENCES = (
     "scripts/check_control_plane.py",
     "scripts/check_repo_package.py",
+    "scripts/hccp.py",
     "docs/architecture.md",
     "docs/migration-guide.md",
     "docs/legacy-doc-mapping.md",

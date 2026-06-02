@@ -8,6 +8,7 @@ What is included:
 
 - Codex skills for loading Hermes architecture and project operating rules.
 - A 3+3 project file standard that keeps model startup context small.
+- A unified `hccp` CLI that routes setup, checks, and demo commands from one entrypoint.
 - A Protocol Doctor for target projects and a repo linter for this public package.
 - A local runnable demo that proves the pattern without network calls or runtime side effects.
 - Migration guides for moving existing Hermes projects into the 3+3 standard.
@@ -58,19 +59,19 @@ This repo proposes a small standard:
 Install the Codex skills:
 
 ```bash
-./scripts/install_codex_skills.sh
+python3 scripts/hccp.py install-skills
 ```
 
 Initialize the standard files in a project:
 
 ```bash
-./scripts/init_project_standard.sh /path/to/your-project
+python3 scripts/hccp.py init /path/to/your-project
 ```
 
 Run the doctor before the first session:
 
 ```bash
-python3 scripts/check_control_plane.py /path/to/your-project
+python3 scripts/hccp.py doctor /path/to/your-project
 ```
 
 Point the doctor at the target project directory, not this repository root. `PASS` means no errors or warnings. `WARN` means warnings were found but no errors. `FAIL` means required files, required sections, or safety hygiene need attention before Codex treats the project as ready.
@@ -84,7 +85,7 @@ Exit codes:
 For JSON output:
 
 ```bash
-python3 scripts/check_control_plane.py /path/to/your-project --json
+python3 scripts/hccp.py doctor /path/to/your-project --json
 ```
 
 The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`. `ok` means there are no validation errors; under `--strict-warnings`, warning-only reports still have `ok: true` but the process exits `1`.
@@ -94,7 +95,7 @@ Use `--strict-warnings` for release or CI-style checks where warnings should blo
 Try the local runnable demo:
 
 ```bash
-python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
+python3 scripts/hccp.py demo --json
 ```
 
 The demo reads a bundled text fixture and writes local Markdown, raw source, index, and report artifacts under `examples/knowledge-ingestion-agent/demo-output/`. It performs no network calls, external writes, messaging sends, credential edits, or Hermes gateway operations.
@@ -118,6 +119,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `docs/legacy-doc-mapping.md`: mapping table from legacy docs into the 3+3 standard.
 - `templates/project-standard/`: reusable project files.
 - `examples/knowledge-ingestion-agent/`: sanitized example project using the standard, with a local runnable ingestion demo.
+- `scripts/hccp.py`: unified CLI entrypoint for install, init, doctor, repo-doctor, and demo workflows.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
 - `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.
@@ -182,12 +184,14 @@ It is an operating pattern and starter kit.
 Run the local verifier and its regression tests before publishing changes:
 
 ```bash
+python3 -m py_compile scripts/hccp.py tests/test_hccp_cli.py
 python3 -m py_compile scripts/check_control_plane.py tests/test_check_control_plane.py
 python3 -m py_compile scripts/check_repo_package.py tests/test_check_repo_package.py
 python3 -m py_compile examples/knowledge-ingestion-agent/scripts/run_demo.py tests/test_runnable_demo.py
-python3 scripts/check_repo_package.py . --strict-warnings
-python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
-python3 scripts/check_control_plane.py templates/project-standard
+python3 scripts/hccp.py repo-doctor . --strict-warnings
+python3 scripts/hccp.py doctor examples/knowledge-ingestion-agent
+python3 scripts/hccp.py doctor templates/project-standard
+python3 tests/test_hccp_cli.py
 python3 tests/test_check_control_plane.py
 python3 tests/test_check_repo_package.py
 python3 tests/test_runnable_demo.py
