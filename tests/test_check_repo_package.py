@@ -134,6 +134,91 @@ class RepoPackageLinterTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertIn("skill_name_mismatch", error_codes)
 
+    def test_missing_skill_metadata_key_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            skill_file = repo / "skills" / "hermes-project-operating-manual" / "SKILL.md"
+            content = skill_file.read_text(encoding="utf-8")
+            skill_file.write_text(content.replace("version: 0.6\n", "", 1), encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("missing_skill_metadata", error_codes)
+
+    def test_bad_skill_status_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            skill_file = repo / "skills" / "hermes-project-operating-manual" / "SKILL.md"
+            content = skill_file.read_text(encoding="utf-8")
+            skill_file.write_text(content.replace("status: public-pattern", "status: private-draft", 1), encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("skill_status_mismatch", error_codes)
+
+    def test_invalid_skill_name_slug_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            skill_file = repo / "skills" / "hermes-project-operating-manual" / "SKILL.md"
+            content = skill_file.read_text(encoding="utf-8")
+            skill_file.write_text(content.replace("name: hermes-project-operating-manual", "name: Hermes Project", 1), encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("invalid_skill_name", error_codes)
+
+    def test_invalid_skill_version_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            skill_file = repo / "skills" / "hermes-project-operating-manual" / "SKILL.md"
+            content = skill_file.read_text(encoding="utf-8")
+            skill_file.write_text(content.replace("version: 0.6", "version: beta", 1), encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("invalid_skill_version", error_codes)
+
+    def test_unclosed_skill_frontmatter_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            skill_file = repo / "skills" / "hermes-project-operating-manual" / "SKILL.md"
+            content = skill_file.read_text(encoding="utf-8")
+            skill_file.write_text(content.replace("---\n\n# Hermes Project Operating Manual", "\n# Hermes Project Operating Manual", 1), encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("invalid_skill_frontmatter", error_codes)
+
     def test_missing_template_referenced_by_init_script_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir) / "repo"

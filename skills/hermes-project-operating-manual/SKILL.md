@@ -1,6 +1,8 @@
 ---
 name: hermes-project-operating-manual
-description: Use when the user invokes a Hermes/Codex development-control-plane workflow, including phrases like "启动 Hermes 开发控制台协议", or asks Codex to work on any Hermes + messaging-platform project. Defines the 3+3 project file standard, planning/grill-me gate, multi-agent startup protocol, risk confirmation rules, and context-loading order.
+description: Use when the user invokes a Hermes/Codex development-control-plane workflow, including phrases like "启动 Hermes 开发控制台协议", asks Codex to work on any Hermes + messaging-platform project, migrates an existing Hermes project into the 3+3 standard, or asks for Doctor/demo/multi-agent control-plane guidance. Defines the 3+3 project file standard, planning/grill-me gate, Doctor checks, runnable-demo expectations, migration flow, multi-agent startup protocol, risk confirmation rules, and context-loading order.
+version: 0.6
+status: public-pattern
 ---
 
 # Hermes Project Operating Manual
@@ -48,6 +50,23 @@ When the user invokes the protocol:
 7. Classify the task as explore, plan, implement, fix, review, verify, or migrate.
 8. For medium/high-risk or ambiguous work, do planning plus grill-me before edits.
 9. Define test scenarios before spawning workers or changing files.
+
+## Verification And Migration Tools
+
+Use the local verification scripts before treating a project or this package as ready:
+
+```bash
+python3 scripts/check_control_plane.py /path/to/project
+python3 scripts/check_repo_package.py . --strict-warnings
+```
+
+For public-package smoke tests, use the bundled local demo:
+
+```bash
+python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
+```
+
+For existing projects with old continuity or status docs, use `docs/migration-guide.md` and `docs/legacy-doc-mapping.md`. Do not migrate by copying old files wholesale into startup context; summarize and route content into the 3+3 canonical homes.
 
 ## 3+3 Project Standard
 

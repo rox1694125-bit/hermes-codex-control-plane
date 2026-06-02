@@ -1,6 +1,8 @@
 ---
 name: hermes-architecture
 description: Load before changing Hermes Agent, Hermes profiles, gateway integrations, messaging-platform adapters such as Feishu/Lark, skills, tools, Codex runtime bridging, or Kanban worker behavior. Provides a compact architecture map, invariants, risk points, and test routing for Codex acting as the Hermes development control plane.
+version: 0.6
+status: public-pattern
 ---
 
 # Hermes Architecture
@@ -8,6 +10,8 @@ description: Load before changing Hermes Agent, Hermes profiles, gateway integra
 Use this skill whenever the task touches Hermes Agent itself, a Hermes-powered project, a messaging-platform gateway flow, a profile-specific runtime, skills/tooling, or multi-agent/Kanban behavior.
 
 Codex is the development control plane. Hermes plus the messaging platform are the execution workers and user-facing runtime. Do not merge these roles unless the user explicitly asks for a runtime integration.
+
+For the public package architecture map, see `docs/architecture.md`. It names Hermes runtime modules that may exist in a Hermes Agent checkout, not necessarily inside this public pattern repository. For project migration into the 3+3 standard, prefer `hermes-project-operating-manual` plus `docs/migration-guide.md`.
 
 ## First Moves
 

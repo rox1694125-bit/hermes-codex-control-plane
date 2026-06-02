@@ -99,6 +99,9 @@ TOKEN_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{16,}\b"),
 )
+SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SKILL_VERSION_RE = re.compile(r"^\d+\.\d+$")
+MAX_SKILL_DESCRIPTION_LENGTH = 700
 
 
 @dataclass
@@ -159,19 +162,21 @@ def check_readme(root: Path, errors: list[Finding]) -> None:
             errors.append(Finding("missing_readme_reference", f"README.md should reference {reference}", "README.md"))
 
 
-def frontmatter(content: str) -> dict[str, str]:
+def frontmatter(content: str) -> tuple[dict[str, str], bool]:
     lines = content.splitlines()
     if not lines or lines[0].strip() != "---":
-        return {}
+        return {}, False
 
     metadata: dict[str, str] = {}
+    closed = False
     for line in lines[1:]:
         if line.strip() == "---":
+            closed = True
             break
         if ":" in line:
             key, value = line.split(":", 1)
             metadata[key.strip()] = value.strip()
-    return metadata
+    return metadata, closed
 
 
 def check_skill_metadata(root: Path, errors: list[Finding]) -> None:
@@ -179,10 +184,33 @@ def check_skill_metadata(root: Path, errors: list[Finding]) -> None:
         path = root / skill_rel
         if not path.is_file():
             continue
-        metadata = frontmatter(read_text(path))
-        for key in ("name", "description"):
+        metadata, closed = frontmatter(read_text(path))
+        if not closed:
+            errors.append(Finding("invalid_skill_frontmatter", f"{skill_rel} frontmatter must start and end with ---", skill_rel))
+        for key in ("name", "description", "version", "status"):
             if not metadata.get(key):
                 errors.append(Finding("missing_skill_metadata", f"{skill_rel} missing frontmatter key: {key}", skill_rel))
+        if metadata.get("name") and SKILL_NAME_RE.fullmatch(metadata["name"]) is None:
+            errors.append(Finding("invalid_skill_name", f"{skill_rel} frontmatter name should be a lowercase slug", skill_rel))
+        description = metadata.get("description", "")
+        if "\n" in description or len(description) > MAX_SKILL_DESCRIPTION_LENGTH:
+            errors.append(
+                Finding(
+                    "invalid_skill_description",
+                    f"{skill_rel} frontmatter description should be a concise single line",
+                    skill_rel,
+                )
+            )
+        if metadata.get("version") and SKILL_VERSION_RE.fullmatch(metadata["version"]) is None:
+            errors.append(Finding("invalid_skill_version", f"{skill_rel} frontmatter version should look like N.N", skill_rel))
+        if metadata.get("status") and metadata["status"] != "public-pattern":
+            errors.append(
+                Finding(
+                    "skill_status_mismatch",
+                    f"{skill_rel} frontmatter status should be public-pattern",
+                    skill_rel,
+                )
+            )
         expected_name = path.parent.name
         if metadata.get("name") and metadata["name"] != expected_name:
             errors.append(
