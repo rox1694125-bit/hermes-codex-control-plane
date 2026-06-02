@@ -128,12 +128,16 @@ Try the bundled example:
 ```bash
 python3 scripts/hccp.py doctor examples/knowledge-ingestion-agent
 python3 scripts/hccp.py demo --json
+python3 scripts/hccp.py simulate-message --json
 ```
+
+`simulate-message` reads the bundled `message-event.json` fixture and resolves a local text source into the same ingestion demo. It rejects URL sources and does not contact Feishu/Lark, Hermes gateway, credentials, or external services.
 
 For maintainers of this repository:
 
 ```bash
 python3 scripts/hccp.py repo-doctor . --strict-warnings
+python3 scripts/hccp.py simulate-message --json
 python3 tests/test_hccp_cli.py
 python3 tests/test_check_control_plane.py
 python3 tests/test_check_repo_package.py

@@ -132,6 +132,14 @@ python3 scripts/hccp.py demo --json
 
 The demo reads a bundled text fixture and writes local Markdown, raw source, index, and report artifacts under `examples/knowledge-ingestion-agent/demo-output/`. It performs no network calls, external writes, messaging sends, credential edits, or Hermes gateway operations.
 
+Simulate a local message event against the same demo:
+
+```bash
+python3 scripts/hccp.py simulate-message --json
+```
+
+The simulator reads `examples/knowledge-ingestion-agent/fixtures/message-event.json`, resolves its local text source, and runs the demo ingestion path. URL sources are rejected, and no messaging platform or Hermes gateway is contacted.
+
 Then start a Codex session with:
 
 ```text
@@ -151,7 +159,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `docs/legacy-doc-mapping.md`: mapping table from legacy docs into the 3+3 standard.
 - `templates/project-standard/`: reusable project files.
 - `examples/knowledge-ingestion-agent/`: sanitized example project using the standard, with a local runnable ingestion demo.
-- `scripts/hccp.py`: unified CLI entrypoint for install, skill-status, init, doctor, repo-doctor, and demo workflows.
+- `scripts/hccp.py`: unified CLI entrypoint for install, skill-status, init, doctor, repo-doctor, demo, and message simulation workflows.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
 - `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.
@@ -223,6 +231,7 @@ python3 -m py_compile examples/knowledge-ingestion-agent/scripts/run_demo.py tes
 python3 scripts/hccp.py repo-doctor . --strict-warnings
 python3 scripts/hccp.py doctor examples/knowledge-ingestion-agent
 python3 scripts/hccp.py doctor templates/project-standard
+python3 scripts/hccp.py simulate-message --json
 python3 tests/test_hccp_cli.py
 python3 tests/test_check_control_plane.py
 python3 tests/test_check_repo_package.py

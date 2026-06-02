@@ -8,7 +8,13 @@ Run the demo:
 python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
 ```
 
-The demo reads `fixtures/sample-article.txt` and writes generated artifacts under `demo-output/`:
+Run the same flow through a local message-event fixture:
+
+```bash
+python3 scripts/hccp.py simulate-message --json
+```
+
+The demo reads `fixtures/sample-article.txt`. The simulator reads `fixtures/message-event.json`, resolves the same local text source, and writes generated artifacts under `demo-output/`:
 
 - `notes/local-knowledge-ingestion-smoke-test.md`
 - `raw/408958dbf08d.txt`

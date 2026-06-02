@@ -65,6 +65,8 @@ MIGRATION_TARGETS = (
     "docs/SOURCE_POLICY.md",
     "docs/TERMS.md",
 )
+DEFAULT_MESSAGE_EVENT = REPO_ROOT / "examples" / "knowledge-ingestion-agent" / "fixtures" / "message-event.json"
+DEMO_SCRIPT = REPO_ROOT / "examples" / "knowledge-ingestion-agent" / "scripts" / "run_demo.py"
 
 
 @dataclass
@@ -81,6 +83,14 @@ def run_command(command: list[str]) -> int:
         print(f"Unable to run command: {exc}", file=sys.stderr)
         return 2
     return completed.returncode
+
+
+def run_captured_command(command: list[str]) -> subprocess.CompletedProcess[str] | None:
+    try:
+        return subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, check=False)
+    except OSError as exc:
+        print(f"Unable to run command: {exc}", file=sys.stderr)
+        return None
 
 
 def script_path(*parts: str) -> str:
@@ -245,6 +255,10 @@ def should_skip_scan(path: Path, root: Path) -> bool:
     except ValueError:
         parts = path.parts
     return any(part in SCAN_SKIP_DIRS for part in parts)
+
+
+def is_url(value: str) -> bool:
+    return re.match(r"^[a-z][a-z0-9+.-]*://", value, flags=re.IGNORECASE) is not None
 
 
 def normalize_name(path: Path) -> str:
@@ -462,6 +476,198 @@ def command_migration_draft(args: argparse.Namespace) -> int:
     return 0
 
 
+def event_source_value(event: dict) -> str | None:
+    source = event.get("source_file")
+    if isinstance(source, str):
+        return source
+
+    attachments = event.get("attachments")
+    if isinstance(attachments, list):
+        for attachment in attachments:
+            if not isinstance(attachment, dict):
+                continue
+            if attachment.get("type") == "local_text_file" and isinstance(attachment.get("path"), str):
+                return attachment["path"]
+    return None
+
+
+def simulate_message_report(event_arg: str | None, output_arg: str | None) -> tuple[dict, int]:
+    event_path = Path(event_arg).expanduser().resolve() if event_arg else DEFAULT_MESSAGE_EVENT.resolve()
+    if not event_path.is_file():
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("missing_event", f"Event file does not exist: {event_path}", str(event_path)))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    try:
+        event = json.loads(read_text(event_path))
+    except json.JSONDecodeError as exc:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("invalid_event", f"Event JSON is invalid: {exc}", str(event_path)))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    if not isinstance(event, dict):
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("invalid_event", "Event JSON must be an object", str(event_path)))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    source_value = event_source_value(event)
+    if not source_value:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("missing_source_file", "Event must include source_file or a local_text_file attachment", event_path.name))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+    if is_url(source_value):
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("url_source_rejected", "Message simulator does not fetch URL sources", event_path.name))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    source_path = Path(source_value)
+    if source_path.is_absolute() or ".." in source_path.parts:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("unsafe_source_path", "Event source_file must be a local relative path without '..'", event_path.name))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    resolved_source = (event_path.parent / source_path).resolve()
+    try:
+        resolved_source.relative_to(event_path.parent)
+    except ValueError:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("unsafe_source_path", "Event source_file must resolve inside the event file directory", event_path.name))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+    if not resolved_source.is_file():
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("missing_source_file", f"Source file does not exist: {source_value}", event_path.name))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    command = [PYTHON, str(DEMO_SCRIPT), "--input", str(resolved_source), "--json"]
+    if output_arg is not None:
+        command.extend(["--output", output_arg])
+    completed = run_captured_command(command)
+    if completed is None:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("demo_run_failed", "Unable to run local demo"))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+    if completed.returncode != 0:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("demo_run_failed", completed.stderr.strip() or "Local demo failed"))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            completed.returncode,
+        )
+
+    try:
+        demo_report = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return (
+            {
+                "ok": False,
+                "errors": [asdict(Finding("invalid_demo_output", "Local demo did not return JSON"))],
+                "event": {},
+                "demo": {},
+                "summary": {"errors": 1},
+            },
+            2,
+        )
+
+    event_summary = {
+        "platform": event.get("platform", "local"),
+        "event_type": event.get("event_type", "message"),
+        "message_id": event.get("message_id", "local-message"),
+        "chat_id": event.get("chat_id", "local-chat"),
+        "source_file": source_value,
+    }
+    report = {
+        "ok": True,
+        "event": event_summary,
+        "demo": demo_report,
+        "runtime_boundary": "local-only: no network calls, no external sends, no credentials, and no Hermes gateway operations",
+        "summary": {"errors": 0, "artifacts": len(demo_report.get("artifacts", {}))},
+    }
+    return report, 0
+
+
+def command_simulate_message(args: argparse.Namespace) -> int:
+    report, exit_code = simulate_message_report(args.event, args.output)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    elif report["ok"]:
+        print("Hermes-Codex Message Simulator: PASS")
+        print(f"Event: {report['event']['message_id']} ({report['event']['platform']})")
+        print(f"Source: {report['event']['source_file']}")
+        print(f"Output: {report['demo']['output_dir']}")
+        print(f"Runtime boundary: {report['runtime_boundary']}")
+    else:
+        for item in report["errors"]:
+            print(f"{item['code']}: {item['message']}", file=sys.stderr)
+    return exit_code
+
+
 def print_skill_status(report: dict) -> None:
     status = "PASS" if report["ok"] else "FAIL"
     summary = report["summary"]
@@ -592,6 +798,12 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--output", help="Directory for generated demo artifacts")
     demo.add_argument("--json", action="store_true", help="Print machine-readable run summary")
     demo.set_defaults(func=command_demo)
+
+    simulate_message = subparsers.add_parser("simulate-message", help="Simulate a local messaging event against the demo")
+    simulate_message.add_argument("--event", help="Local message-event JSON file")
+    simulate_message.add_argument("--output", help="Directory for generated demo artifacts")
+    simulate_message.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    simulate_message.set_defaults(func=command_simulate_message)
 
     init = subparsers.add_parser("init", help="Initialize the 3+3 project standard in a project")
     init.add_argument("project_path", help="Project directory to initialize")

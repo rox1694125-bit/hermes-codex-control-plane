@@ -92,6 +92,81 @@ class HccpCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("Input file does not exist", result.stderr)
 
+    def test_simulate_message_runs_default_local_event(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "message-output"
+            result = run_hccp("simulate-message", "--output", str(output_dir), "--json")
+
+            report = json.loads(result.stdout)
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["event"]["message_id"], "local-message-0001")
+            self.assertIn("local-only", report["runtime_boundary"])
+            self.assertTrue((output_dir / "index.json").is_file())
+
+    def test_simulate_message_rejects_url_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            event = Path(temp_dir) / "event.json"
+            output_dir = Path(temp_dir) / "out"
+            event.write_text(json.dumps({"source_file": "https://example.com/article"}), encoding="utf-8")
+            result = run_hccp("simulate-message", "--event", str(event), "--output", str(output_dir), "--json")
+
+            report = json.loads(result.stdout)
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["errors"][0]["code"], "url_source_rejected")
+            self.assertFalse(output_dir.exists())
+
+    def test_simulate_message_rejects_missing_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            event = Path(temp_dir) / "event.json"
+            output_dir = Path(temp_dir) / "out"
+            event.write_text(json.dumps({"source_file": "missing.txt"}), encoding="utf-8")
+            result = run_hccp("simulate-message", "--event", str(event), "--output", str(output_dir), "--json")
+
+            report = json.loads(result.stdout)
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["errors"][0]["code"], "missing_source_file")
+            self.assertFalse(output_dir.exists())
+
+    def test_simulate_message_rejects_unsafe_source_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            event = Path(temp_dir) / "event.json"
+            output_dir = Path(temp_dir) / "out"
+            event.write_text(json.dumps({"source_file": "../sample-article.txt"}), encoding="utf-8")
+            result = run_hccp("simulate-message", "--event", str(event), "--output", str(output_dir), "--json")
+
+            report = json.loads(result.stdout)
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["errors"][0]["code"], "unsafe_source_path")
+            self.assertFalse(output_dir.exists())
+
+    def test_simulate_message_rejects_symlink_source_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            outside = temp_root / "outside.txt"
+            event_dir = temp_root / "event-dir"
+            event_dir.mkdir()
+            outside.write_text("outside source\n", encoding="utf-8")
+            (event_dir / "source-link.txt").symlink_to(outside)
+            event = event_dir / "event.json"
+            output_dir = temp_root / "out"
+            event.write_text(json.dumps({"source_file": "source-link.txt"}), encoding="utf-8")
+            result = run_hccp("simulate-message", "--event", str(event), "--output", str(output_dir), "--json")
+
+            report = json.loads(result.stdout)
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["errors"][0]["code"], "unsafe_source_path")
+            self.assertFalse(output_dir.exists())
+
     def test_init_wraps_project_initializer(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir) / "project"

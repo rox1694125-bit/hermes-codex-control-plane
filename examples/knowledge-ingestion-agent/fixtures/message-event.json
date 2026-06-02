@@ -1,0 +1,9 @@
+{
+  "platform": "feishu-local",
+  "event_type": "message.created",
+  "message_id": "local-message-0001",
+  "chat_id": "local-chat-knowledge-ingestion",
+  "sender": "local-operator",
+  "text": "Please ingest the bundled sample article.",
+  "source_file": "sample-article.txt"
+}

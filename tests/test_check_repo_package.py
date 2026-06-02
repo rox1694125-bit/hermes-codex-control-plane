@@ -260,6 +260,41 @@ class RepoPackageLinterTests(unittest.TestCase):
         self.assertIn("private_path", error_codes)
         self.assertIn("token_like_secret", error_codes)
 
+    def test_demo_output_is_ignored_by_safety_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            output = repo / "examples" / "knowledge-ingestion-agent" / "demo-output"
+            output.mkdir(exist_ok=True)
+            private_path = "/".join(("", "Volumes", "local", "generated", "report"))
+            (output / "latest-run.json").write_text(json.dumps({"artifact": private_path}), encoding="utf-8")
+
+            result = run_linter(repo, "--strict-warnings", "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+
+    def test_nested_demo_output_is_not_ignored_by_safety_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            output = repo / "docs" / "demo-output"
+            output.mkdir()
+            private_path = "/".join(("", "Users", "alice", "private", "project"))
+            (output / "private.md").write_text(f"Path: {private_path}\n", encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("private_path", error_codes)
+
     def test_missing_repo_path_is_usage_error(self) -> None:
         missing = Path(tempfile.gettempdir()) / "hermes-codex-missing-repo"
         result = run_linter(missing, "--json")

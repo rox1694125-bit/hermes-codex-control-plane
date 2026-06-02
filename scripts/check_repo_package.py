@@ -42,6 +42,7 @@ REQUIRED_FILES = (
     "examples/knowledge-ingestion-agent/WORKPLAN.md",
     "examples/knowledge-ingestion-agent/docs/DECISIONS.md",
     "examples/knowledge-ingestion-agent/docs/RISKS.md",
+    "examples/knowledge-ingestion-agent/fixtures/message-event.json",
     "examples/knowledge-ingestion-agent/fixtures/sample-article.txt",
     "examples/knowledge-ingestion-agent/scripts/run_demo.py",
     "scripts/check_control_plane.py",
@@ -133,6 +134,10 @@ def should_skip(path: Path, root: Path) -> bool:
         parts = path.relative_to(root).parts
     except ValueError:
         parts = path.parts
+    if parts and parts[0] == "demo-output":
+        return True
+    if len(parts) >= 3 and parts[0] == "examples" and parts[2] == "demo-output":
+        return True
     return any(part in SKIP_DIRS for part in parts)
 
 
