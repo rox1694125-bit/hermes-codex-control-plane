@@ -78,6 +78,7 @@ Try the bundled example:
 
 ```bash
 python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
+python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
 ```
 
 For maintainers of this repository:
@@ -86,6 +87,7 @@ For maintainers of this repository:
 python3 scripts/check_repo_package.py . --strict-warnings
 python3 tests/test_check_control_plane.py
 python3 tests/test_check_repo_package.py
+python3 tests/test_runnable_demo.py
 ```
 
 ## 5. Start Codex

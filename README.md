@@ -65,6 +65,14 @@ The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summar
 
 Use `--strict-warnings` for release or CI-style checks where warnings should block.
 
+Try the local runnable demo:
+
+```bash
+python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
+```
+
+The demo reads a bundled text fixture and writes local Markdown, raw source, index, and report artifacts under `examples/knowledge-ingestion-agent/demo-output/`. It performs no network calls, external writes, messaging sends, credential edits, or Hermes gateway operations.
+
 Then start a Codex session with:
 
 ```text
@@ -80,7 +88,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `protocols/hermes-development-control-plane.md`: human-readable operating protocol.
 - `protocols/multi-agent-contract.md`: explorer / worker / verifier contract for Codex subagents.
 - `templates/project-standard/`: reusable project files.
-- `examples/knowledge-ingestion-agent/`: sanitized example project using the standard.
+- `examples/knowledge-ingestion-agent/`: sanitized example project using the standard, with a local runnable ingestion demo.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
 - `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.
@@ -147,11 +155,13 @@ Run the local verifier and its regression tests before publishing changes:
 ```bash
 python3 -m py_compile scripts/check_control_plane.py tests/test_check_control_plane.py
 python3 -m py_compile scripts/check_repo_package.py tests/test_check_repo_package.py
+python3 -m py_compile examples/knowledge-ingestion-agent/scripts/run_demo.py tests/test_runnable_demo.py
 python3 scripts/check_repo_package.py . --strict-warnings
 python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
 python3 scripts/check_control_plane.py templates/project-standard
 python3 tests/test_check_control_plane.py
 python3 tests/test_check_repo_package.py
+python3 tests/test_runnable_demo.py
 ```
 
 The tests use only the Python standard library.

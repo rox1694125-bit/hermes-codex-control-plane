@@ -41,6 +41,6 @@ Ask before:
 Example checks:
 
 ```bash
-python3 scripts/check_project.py
-python3 scripts/build_indexes.py --check
+python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
+python3 tests/test_runnable_demo.py
 ```

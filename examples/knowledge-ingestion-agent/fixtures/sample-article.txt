@@ -1,0 +1,9 @@
+# Local Knowledge Ingestion Smoke Test
+
+Codex acts as the development control plane for Hermes-powered messaging agents. Hermes remains the runtime worker that receives messages, runs profiles, and sends replies through the messaging platform.
+
+The control-plane standard keeps project state in a compact set of startup files. AGENTS.md tells Codex how to start, PROJECT_BRIEF.md summarizes the current truth, and WORKPLAN.md defines active tasks plus test scenarios.
+
+This demo uses local text only. It does not fetch URLs, call external APIs, send messages, edit credentials, or start the Hermes gateway.
+
+The expected output is a Markdown note, a raw source copy, a JSON index, and a JSON run report. These artifacts make the ingestion path visible without pretending to be a production runtime.

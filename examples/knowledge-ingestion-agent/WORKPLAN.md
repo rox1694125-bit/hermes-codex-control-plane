@@ -12,7 +12,7 @@ Updated: 2026-06-02
 
 | ID | Task | Risk | Acceptance Criteria | Status |
 |---|---|---|---|---|
-| T001 | Implement local article ingestion smoke | Medium | Given a local raw text file, create a main note, raw note, concept candidates, and updated index | pending |
+| T001 | Implement local article ingestion smoke | Low | Given a local raw text file, create a main note, raw note, concept candidates, and updated index | done |
 | T002 | Add read-only messaging command design | Low | Design doc explains URL intake, status reply, and failure modes without changing runtime config | pending |
 | T003 | Add external mirror dry-run | Medium | Dry-run report shows what would be written without making external API calls | pending |
 
@@ -35,9 +35,6 @@ Updated: 2026-06-02
 ## Required Checks
 
 ```bash
-python3 scripts/check_project.py
-python3 scripts/build_indexes.py --check
+python3 examples/knowledge-ingestion-agent/scripts/run_demo.py --json
+python3 tests/test_runnable_demo.py
 ```
-
-These scripts are examples; implement them in the sample if the project becomes executable.
-

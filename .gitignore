@@ -25,6 +25,7 @@ credentials/
 logs/
 tmp/
 temp/
+demo-output/
 .cache/
 .pytest_cache/
 .ruff_cache/
@@ -49,4 +50,3 @@ sessions/
 kanban.db
 *.sqlite
 *.sqlite3
-

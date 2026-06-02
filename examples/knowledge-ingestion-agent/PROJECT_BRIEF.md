@@ -10,8 +10,8 @@ This sample project demonstrates a messaging-triggered knowledge ingestion workf
 
 - Project path: `examples/knowledge-ingestion-agent`
 - Runtime profile: `example-knowledge-ingestion`
-- Knowledge root: `knowledge/`
-- Reports: `reports/`
+- Demo fixture: `fixtures/sample-article.txt`
+- Demo output: `demo-output/`
 
 ## Scope
 
@@ -33,7 +33,7 @@ Out of scope unless reopened:
 ## Current Capabilities
 
 - Project standard files exist.
-- Ingestion scripts are planned but not implemented.
+- Local-only ingestion demo writes Markdown, raw source, index, and report artifacts.
 - Messaging integration is planned as a runtime concern, not a Codex control surface.
 
 ## Current Next Steps
@@ -42,5 +42,4 @@ See `WORKPLAN.md`.
 
 ## Risk Summary
 
-Runtime writes, credential changes, gateway changes, and deletion require explicit confirmation. See `docs/RISKS.md`.
-
+Runtime writes, credential changes, gateway changes, deletion, and real messaging sends require explicit confirmation. The runnable demo is local-only. See `docs/RISKS.md`.
