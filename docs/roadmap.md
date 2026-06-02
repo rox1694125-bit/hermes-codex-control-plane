@@ -5,6 +5,7 @@
 Goal: make the operating pattern understandable and reusable.
 
 - Public README
+- Architecture map
 - Two Codex skills
 - Human-readable protocols
 - 3+3 project templates

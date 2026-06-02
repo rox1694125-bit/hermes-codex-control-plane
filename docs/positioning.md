@@ -32,6 +32,8 @@ Skills are the right place for durable architecture and operating knowledge beca
 
 Project-specific state should not live in skills. It belongs in `AGENTS.md`, `PROJECT_BRIEF.md`, `WORKPLAN.md`, and supporting docs.
 
+For the system boundary map, see `docs/architecture.md`.
+
 ## Why 3+3
 
 The previous instinct in many agent projects is to create many specialized docs. That can work for humans, but models struggle when every startup requires reading ten or more files.
@@ -46,4 +48,3 @@ The 3+3 standard optimizes for model startup:
 - `docs/project-log/`: what happened over time.
 
 Optional docs are added only when a domain truly needs them.
-

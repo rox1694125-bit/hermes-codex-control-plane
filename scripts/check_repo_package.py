@@ -21,6 +21,7 @@ REQUIRED_FILES = (
     "CONTRIBUTING.md",
     ".gitignore",
     "docs/quickstart.md",
+    "docs/architecture.md",
     "docs/roadmap.md",
     "docs/github-publication.md",
     "docs/positioning.md",
@@ -59,6 +60,7 @@ REQUIRED_DIRS = (
 README_REFERENCES = (
     "scripts/check_control_plane.py",
     "scripts/check_repo_package.py",
+    "docs/architecture.md",
     "templates/project-standard",
     "examples/knowledge-ingestion-agent",
 )

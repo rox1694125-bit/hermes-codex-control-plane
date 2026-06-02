@@ -38,6 +38,7 @@ agent-skills
 ## Public v0.1 Release Checklist
 
 - [ ] README explains the control-plane pattern in under 3 minutes.
+- [ ] Architecture map explains the control-plane/runtime boundary.
 - [ ] No private paths, names, credentials, profile details, or project-specific secrets.
 - [ ] Skills are concise and reusable.
 - [ ] Templates are generic and safe to copy.
@@ -78,5 +79,5 @@ v0.1.0 - Public control-plane pattern
 Release note:
 
 ```text
-Initial public package with Codex skills, Hermes/Codex development-control-plane protocol, multi-agent contract, 3+3 project templates, install/init scripts, and a sanitized knowledge-ingestion example.
+Initial public package with Codex skills, Hermes/Codex development-control-plane protocol, multi-agent contract, architecture map, 3+3 project templates, install/init scripts, and a sanitized knowledge-ingestion example.
 ```

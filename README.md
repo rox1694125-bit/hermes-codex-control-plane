@@ -2,13 +2,38 @@
 
 A public, reusable operating pattern for using Codex as the development control plane for Hermes-powered messaging-agent systems.
 
-The core split is simple:
+Use this repo when you want Codex to safely build, repair, test, and document Hermes-powered agents while Hermes and the messaging platform continue to run the daily workflow.
+
+What is included:
+
+- Codex skills for loading Hermes architecture and project operating rules.
+- A 3+3 project file standard that keeps model startup context small.
+- A Protocol Doctor for target projects and a repo linter for this public package.
+- A local runnable demo that proves the pattern without network calls or runtime side effects.
+- Human-readable protocols for planning, high-risk confirmation, and multi-agent development.
+
+The core split:
 
 - **Codex builds the system**: architecture, code changes, tests, reviews, and multi-agent development coordination.
 - **Hermes runs the system**: profiles, gateway, tools, skills, memory, Kanban, and messaging-platform execution.
 - **Messaging apps are the operating surface**: Feishu/Lark, Slack, Telegram, WeCom, or similar platforms are how humans trigger and consume the runtime.
 
 This project turns that split into skills, protocols, templates, and scripts that other builders can copy.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Human["Human operator"] --> Messaging["Messaging platform<br/>Feishu/Lark, Slack, Telegram, WeCom"]
+    Messaging --> Hermes["Hermes runtime<br/>profiles, gateway, tools, memory, Kanban"]
+    Codex["Codex control plane<br/>read, plan, edit, test, review"] --> Shared["Shared project context<br/>skills + 3+3 files + protocols"]
+    Shared --> Codex
+    Shared --> Hermes
+    Codex --> Doctor["Doctor + repo linter<br/>local verification"]
+    Codex --> Demo["Runnable local demo<br/>no network or runtime writes"]
+```
+
+Codex builds and verifies the system. Hermes runs the live workflow. The messaging platform remains the human-facing operating surface. See [docs/architecture.md](docs/architecture.md) for the detailed boundary map.
 
 ## Why This Exists
 
@@ -87,6 +112,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `skills/hermes-architecture/`: Hermes runtime architecture map and risk/test routing.
 - `protocols/hermes-development-control-plane.md`: human-readable operating protocol.
 - `protocols/multi-agent-contract.md`: explorer / worker / verifier contract for Codex subagents.
+- `docs/architecture.md`: control-plane/runtime architecture map.
 - `templates/project-standard/`: reusable project files.
 - `examples/knowledge-ingestion-agent/`: sanitized example project using the standard, with a local runnable ingestion demo.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
