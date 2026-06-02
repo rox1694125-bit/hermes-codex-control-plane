@@ -154,6 +154,63 @@ class HccpCliTests(unittest.TestCase):
             self.assertNotIn("docs/SOURCE_POLICY.md", suggested_paths)
             self.assertFalse((project / "AGENTS.md").exists())
 
+    def test_migration_draft_prints_markdown_without_writing_project(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            (project / "Project Status.md").write_text("legacy status\n", encoding="utf-8")
+            result = run_hccp("migration-draft", str(project))
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("# Hermes-Codex Migration Draft", result.stdout)
+            self.assertIn("Project: `project`", result.stdout)
+            self.assertIn("`Project Status.md`", result.stdout)
+            self.assertIn("PROJECT_BRIEF.md", result.stdout)
+            self.assertNotIn(temp_dir, result.stdout)
+            self.assertFalse((project / "PROJECT_BRIEF.md").exists())
+
+    def test_migration_draft_json_reports_legacy_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            (project / "Glossary.md").write_text("legacy terms\n", encoding="utf-8")
+            result = run_hccp("migration-draft", str(project), "--json")
+
+            report = json.loads(result.stdout)
+            suggestions = {(item["path"], item["suggested_target"]) for item in report["legacy_docs"]}
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["project"], "project")
+            self.assertIn(("Glossary.md", "docs/TERMS.md"), suggestions)
+            self.assertIn("Safety Notes", report["draft"])
+            self.assertNotIn(temp_dir, report["draft"])
+
+    def test_migration_draft_output_writes_only_requested_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            output = Path(temp_dir) / "drafts" / "migration.md"
+            project.mkdir()
+            output.parent.mkdir()
+            (project / "Risk Register.md").write_text("legacy risks\n", encoding="utf-8")
+            result = run_hccp("migration-draft", str(project), "--output", str(output))
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(output.is_file())
+            self.assertIn("Risk Register.md", output.read_text(encoding="utf-8"))
+            self.assertFalse((project / "docs").exists())
+
+    def test_migration_draft_rejects_missing_output_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            output = project / "drafts" / "migration.md"
+            project.mkdir()
+            result = run_hccp("migration-draft", str(project), "--output", str(output))
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Output parent directory does not exist", result.stderr)
+            self.assertFalse((project / "drafts").exists())
+
     def test_skill_status_reports_missing_skills(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             codex_home = Path(temp_dir) / "codex-home"

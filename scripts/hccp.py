@@ -57,6 +57,14 @@ LEGACY_DOC_RULES = (
     ("term", "docs/TERMS.md", "terms docs should become the project glossary"),
     ("glossary", "docs/TERMS.md", "glossary docs should become project terms"),
 )
+MIGRATION_TARGETS = (
+    "PROJECT_BRIEF.md",
+    "WORKPLAN.md",
+    "docs/DECISIONS.md",
+    "docs/RISKS.md",
+    "docs/SOURCE_POLICY.md",
+    "docs/TERMS.md",
+)
 
 
 @dataclass
@@ -350,6 +358,110 @@ def print_init_preview(report: dict) -> None:
             print(f"- {item['path']} -> {item['suggested_target']}: {item['reason']}")
 
 
+def migration_draft_report(project_path: str) -> dict:
+    root = Path(project_path).expanduser().resolve()
+    if not root.exists():
+        return {
+            "ok": False,
+            "project": root.name,
+            "errors": [asdict(Finding("missing_project", f"Project directory does not exist: {root}", str(root)))],
+            "draft": "",
+            "legacy_docs": [],
+            "summary": {"errors": 1, "legacy_docs": 0, "targets": 0},
+        }
+    if not root.is_dir():
+        return {
+            "ok": False,
+            "project": root.name,
+            "errors": [asdict(Finding("not_a_directory", f"Project path is not a directory: {root}", str(root)))],
+            "draft": "",
+            "legacy_docs": [],
+            "summary": {"errors": 1, "legacy_docs": 0, "targets": 0},
+        }
+
+    legacy_docs = legacy_merge_plan(root)
+    by_target: dict[str, list[dict]] = {target: [] for target in MIGRATION_TARGETS}
+    for item in legacy_docs:
+        by_target.setdefault(item["suggested_target"], []).append(item)
+
+    lines = [
+        "# Hermes-Codex Migration Draft",
+        "",
+        f"Project: `{root.name}`",
+        "",
+        "This draft is non-destructive. Review and summarize legacy documents into the 3+3 files; do not copy private paths, credentials, or stale history wholesale.",
+        "",
+        "## Migration Checklist",
+        "",
+        "- [ ] Run `python3 scripts/hccp.py init . --dry-run --merge-plan` from the project root.",
+        "- [ ] Review each suggested legacy document before editing canonical files.",
+        "- [ ] Update `PROJECT_BRIEF.md`, `WORKPLAN.md`, `docs/DECISIONS.md`, and `docs/RISKS.md` with concise summaries.",
+        "- [ ] Run `python3 scripts/hccp.py doctor .` and fix errors before using the startup protocol.",
+        "",
+        "## Suggested Routing",
+        "",
+    ]
+
+    if legacy_docs:
+        for target in MIGRATION_TARGETS:
+            items = by_target.get(target, [])
+            if not items:
+                continue
+            lines.extend([f"### {target}", ""])
+            for item in items:
+                lines.append(f"- `{item['path']}`: {item['reason']}")
+            lines.append("")
+    else:
+        lines.extend(["No likely legacy documents were detected.", ""])
+
+    lines.extend(
+        [
+            "## Safety Notes",
+            "",
+            "- Keep credentials, `.env` files, private local paths, runtime state, profiles, memories, and session data out of migrated docs.",
+            "- Treat deletes, overwrites, durable knowledge migrations, and live Hermes or messaging-platform actions as high-risk work requiring explicit confirmation.",
+            "- Prefer summaries and current-state truth over copying entire old status logs into startup context.",
+            "",
+        ]
+    )
+
+    draft = "\n".join(lines)
+    return {
+        "ok": True,
+        "project": root.name,
+        "errors": [],
+        "draft": draft,
+        "legacy_docs": legacy_docs,
+        "summary": {"errors": 0, "legacy_docs": len(legacy_docs), "targets": sum(1 for items in by_target.values() if items)},
+    }
+
+
+def command_migration_draft(args: argparse.Namespace) -> int:
+    report = migration_draft_report(args.project_path)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    elif report["ok"]:
+        if args.output:
+            output_path = Path(args.output).expanduser().resolve()
+            if not output_path.parent.is_dir():
+                print(f"Output parent directory does not exist: {output_path.parent}", file=sys.stderr)
+                return 2
+            if output_path.is_dir():
+                print(f"Output path is a directory: {output_path}", file=sys.stderr)
+                return 2
+            output_path.write_text(report["draft"], encoding="utf-8")
+            print(f"Wrote migration draft: {output_path}")
+        else:
+            print(report["draft"], end="")
+    else:
+        for item in report["errors"]:
+            print(f"{item['code']}: {item['message']}", file=sys.stderr)
+
+    if not report["ok"]:
+        return 2
+    return 0
+
+
 def print_skill_status(report: dict) -> None:
     status = "PASS" if report["ok"] else "FAIL"
     summary = report["summary"]
@@ -488,6 +600,12 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--merge-plan", action="store_true", help="Preview likely legacy-doc merge targets without writing files")
     init.add_argument("--json", action="store_true", help="Emit machine-readable JSON for --dry-run or --merge-plan")
     init.set_defaults(func=command_init)
+
+    migration_draft = subparsers.add_parser("migration-draft", help="Generate a non-destructive migration draft")
+    migration_draft.add_argument("project_path", help="Project directory to inspect")
+    migration_draft.add_argument("--output", help="Optional Markdown output path")
+    migration_draft.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    migration_draft.set_defaults(func=command_migration_draft)
 
     install_skills = subparsers.add_parser("install-skills", help="Install bundled Codex skills")
     install_skills.add_argument("--check", action="store_true", help="Check installed skills without writing files")

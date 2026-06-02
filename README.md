@@ -77,6 +77,12 @@ python3 scripts/hccp.py init /path/to/your-project
 
 `--dry-run` previews which files would be created, skipped, or overwritten. `--merge-plan` scans likely legacy status, continuity, risk, decision, source, or glossary docs and suggests their 3+3 destination without writing files.
 
+For existing projects, generate a non-destructive migration draft:
+
+```bash
+python3 scripts/hccp.py migration-draft /path/to/your-project --output /path/to/migration-draft.md
+```
+
 Run the doctor before the first session:
 
 ```bash

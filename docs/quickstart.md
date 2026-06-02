@@ -37,6 +37,14 @@ python3 scripts/hccp.py init /path/to/project --dry-run --merge-plan
 
 This writes nothing. It shows which standard files would be created, skipped, or overwritten, and lists likely legacy docs that should be summarized into the 3+3 files.
 
+For an existing project, generate a reviewable migration draft:
+
+```bash
+python3 scripts/hccp.py migration-draft /path/to/project --output /path/to/migration-draft.md
+```
+
+The draft is a checklist and routing guide. It does not edit the project.
+
 Then initialize:
 
 ```bash
