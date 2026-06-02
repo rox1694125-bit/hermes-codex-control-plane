@@ -57,9 +57,9 @@ def command_demo(args: argparse.Namespace) -> int:
         PYTHON,
         script_path("examples", "knowledge-ingestion-agent", "scripts", "run_demo.py"),
     ]
-    if args.input:
+    if args.input is not None:
         command.extend(["--input", args.input])
-    if args.output:
+    if args.output is not None:
         command.extend(["--output", args.output])
     if args.json:
         command.append("--json")

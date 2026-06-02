@@ -55,6 +55,20 @@ class HccpCliTests(unittest.TestCase):
             self.assertTrue(summary["ok"])
             self.assertTrue((output_dir / "index.json").is_file())
 
+    def test_demo_forwards_missing_input_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing = Path(temp_dir) / "missing.txt"
+            result = run_hccp("demo", "--input", str(missing))
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Input file does not exist", result.stderr)
+
+    def test_demo_forwards_empty_input_error(self) -> None:
+        result = run_hccp("demo", "--input", "")
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Input file does not exist", result.stderr)
+
     def test_init_wraps_project_initializer(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project = Path(temp_dir) / "project"
