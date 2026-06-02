@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 import sys
@@ -49,6 +50,8 @@ TOKEN_PATTERNS = (
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{16,}\b"),
     re.compile(r"\bgho_[A-Za-z0-9_]{16,}\b"),
 )
+DEFAULT_CONFIG = ".hermes-codex.json"
+CONFIG_KEYS = {"required_files", "required_optional_docs", "placeholder_ignore_paths"}
 
 
 @dataclass
@@ -70,6 +73,59 @@ def read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return path.read_text(encoding="utf-8", errors="replace")
+
+
+def validate_relative_path(value: str, key: str) -> str | None:
+    path = Path(value)
+    if path.is_absolute():
+        return f"{key} entries must be relative paths: {value}"
+    if ".." in path.parts:
+        return f"{key} entries must not contain '..': {value}"
+    return None
+
+
+def load_config(root: Path, config_arg: str | None) -> tuple[dict, Finding | None]:
+    config_path = Path(config_arg).expanduser() if config_arg else root / DEFAULT_CONFIG
+    explicit = config_arg is not None
+
+    if not config_path.is_absolute():
+        config_path = (root / config_path).resolve()
+
+    if not config_path.exists():
+        if explicit:
+            return {}, Finding("missing_config", f"Config file does not exist: {config_path}", str(config_path))
+        return {}, None
+    if not config_path.is_file():
+        return {}, Finding("config_not_file", f"Config path is not a file: {config_path}", str(config_path))
+
+    try:
+        data = json.loads(read_text(config_path))
+    except json.JSONDecodeError as exc:
+        return {}, Finding("invalid_config", f"Config JSON is invalid: {exc}", str(config_path))
+
+    if not isinstance(data, dict):
+        return {}, Finding("invalid_config", "Config JSON must be an object", str(config_path))
+
+    unsupported = sorted(set(data) - CONFIG_KEYS)
+    if unsupported:
+        return {}, Finding("invalid_config", f"Unsupported config keys: {', '.join(unsupported)}", str(config_path))
+
+    normalized: dict[str, list[str]] = {
+        "required_files": [],
+        "required_optional_docs": [],
+        "placeholder_ignore_paths": [],
+    }
+    for key in normalized:
+        value = data.get(key, [])
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            return {}, Finding("invalid_config", f"{key} must be a list of strings", str(config_path))
+        for item in value:
+            error = validate_relative_path(item, key)
+            if error:
+                return {}, Finding("invalid_config", error, str(config_path))
+        normalized[key] = value
+
+    return normalized, None
 
 
 def has_all(content: str, needles: Iterable[str]) -> list[str]:
@@ -103,6 +159,22 @@ def should_skip(path: Path, root: Path) -> bool:
     return any(part in SKIP_DIRS for part in parts)
 
 
+def path_matches(pattern: str, relative_path: str) -> bool:
+    normalized = pattern.strip().replace("\\", "/")
+    if not normalized:
+        return False
+    if normalized.endswith("/"):
+        directory = normalized.rstrip("/")
+        return relative_path == directory or relative_path.startswith(f"{directory}/")
+    if any(char in normalized for char in "*?[]"):
+        return fnmatch.fnmatchcase(relative_path, normalized)
+    return relative_path == normalized or relative_path.startswith(f"{normalized}/")
+
+
+def is_placeholder_ignored(relative_path: str, config: dict) -> bool:
+    return any(path_matches(pattern, relative_path) for pattern in config.get("placeholder_ignore_paths", []))
+
+
 def iter_project_files(root: Path) -> Iterable[Path]:
     for path in root.rglob("*"):
         if should_skip(path, root):
@@ -111,11 +183,17 @@ def iter_project_files(root: Path) -> Iterable[Path]:
             yield path
 
 
-def check_structure(root: Path, errors: list[Finding], warnings: list[Finding]) -> None:
+def check_structure(root: Path, errors: list[Finding], warnings: list[Finding], config: dict) -> None:
     for file_rel in REQUIRED_FILES:
         path = root / file_rel
         if not path.is_file():
             errors.append(Finding("missing_required_file", f"Missing required file: {file_rel}", file_rel))
+
+    extra_required = list(dict.fromkeys(config.get("required_files", []) + config.get("required_optional_docs", [])))
+    for file_rel in extra_required:
+        path = root / file_rel
+        if not path.is_file():
+            errors.append(Finding("missing_config_required_file", f"Missing config-required file: {file_rel}", file_rel))
 
     for dir_rel in REQUIRED_DIRS:
         path = root / dir_rel
@@ -125,7 +203,7 @@ def check_structure(root: Path, errors: list[Finding], warnings: list[Finding]) 
             warnings.append(Finding("empty_project_log", f"Directory is empty: {dir_rel}", dir_rel))
 
 
-def check_content(root: Path, errors: list[Finding], warnings: list[Finding]) -> None:
+def check_content(root: Path, errors: list[Finding], warnings: list[Finding], config: dict) -> None:
     agents = root / "AGENTS.md"
     if agents.is_file():
         content = read_text(agents)
@@ -171,6 +249,9 @@ def check_content(root: Path, errors: list[Finding], warnings: list[Finding]) ->
             )
 
     for path in iter_project_files(root):
+        relative = rel(path, root)
+        if is_placeholder_ignored(relative, config):
+            continue
         try:
             content = read_text(path)
         except OSError:
@@ -180,7 +261,7 @@ def check_content(root: Path, errors: list[Finding], warnings: list[Finding]) ->
                 Finding(
                     "placeholder",
                     f"Template placeholder remains: {match.group(0)}",
-                    rel(path, root),
+                    relative,
                 )
             )
 
@@ -216,7 +297,7 @@ def check_safety(root: Path, errors: list[Finding]) -> None:
                 break
 
 
-def run_check(project_path: Path) -> dict:
+def run_check(project_path: Path, config_path: str | None = None) -> dict:
     root = project_path.resolve()
     errors: list[Finding] = []
     warnings: list[Finding] = []
@@ -238,8 +319,18 @@ def run_check(project_path: Path) -> dict:
             "summary": {"errors": 1, "warnings": 0},
         }
 
-    check_structure(root, errors, warnings)
-    check_content(root, errors, warnings)
+    config, config_finding = load_config(root, config_path)
+    if config_finding is not None:
+        return {
+            "ok": False,
+            "project_path": str(root),
+            "errors": [asdict(config_finding)],
+            "warnings": [],
+            "summary": {"errors": 1, "warnings": 0},
+        }
+
+    check_structure(root, errors, warnings, config)
+    check_content(root, errors, warnings, config)
     check_safety(root, errors)
 
     return {
@@ -278,6 +369,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         description="Check whether a project follows the Hermes-Codex 3+3 control-plane standard."
     )
     parser.add_argument("project_path", help="Project directory to check")
+    parser.add_argument("--config", help="Optional project config JSON path; defaults to .hermes-codex.json when present")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     parser.add_argument("--strict-warnings", action="store_true", help="Return exit 1 when warnings are present")
     return parser.parse_args(argv)
@@ -289,13 +381,13 @@ def main(argv: list[str]) -> int:
     except SystemExit as exc:
         return int(exc.code) if isinstance(exc.code, int) else 2
 
-    report = run_check(Path(args.project_path))
+    report = run_check(Path(args.project_path), args.config)
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         print_human(report)
 
-    argument_error_codes = {"missing_project", "not_a_directory"}
+    argument_error_codes = {"missing_project", "not_a_directory", "missing_config", "config_not_file", "invalid_config"}
     if report["ok"]:
         return 1 if args.strict_warnings and report["warnings"] else 0
     if any(item["code"] in argument_error_codes for item in report["errors"]):

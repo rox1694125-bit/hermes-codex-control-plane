@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -45,6 +46,21 @@ class HccpCliTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Hermes-Codex Control Plane Doctor: PASS", result.stdout)
+
+    def test_doctor_forwards_explicit_config_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            config = Path(temp_dir) / "doctor-config.json"
+            shutil.copytree(REPO_ROOT / "tests" / "fixtures" / "pass-project", project)
+            config.write_text(json.dumps({"required_files": ["docs/OPERATIONS.md"]}), encoding="utf-8")
+            result = run_hccp("doctor", str(project), "--config", str(config), "--json")
+
+            report = json.loads(result.stdout)
+            errors = {(item["code"], item["path"]) for item in report["errors"]}
+
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertIn(("missing_config_required_file", "docs/OPERATIONS.md"), errors)
 
     def test_repo_doctor_wraps_repo_linter(self) -> None:
         result = run_hccp("repo-doctor", "--strict-warnings")

@@ -88,6 +88,23 @@ The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summar
 
 Use `--strict-warnings` when warnings should block a release or CI-style check.
 
+Optional project config:
+
+```json
+{
+  "required_optional_docs": ["docs/SOURCE_POLICY.md"],
+  "placeholder_ignore_paths": ["docs/archive/**"]
+}
+```
+
+Save this as `.hermes-codex.json` in the project root, or pass it explicitly:
+
+```bash
+python3 scripts/hccp.py doctor /path/to/project --config /path/to/config.json
+```
+
+Config can require more files and suppress placeholder warnings for known archive paths. It cannot disable safety checks for secrets, tokens, private local paths, or high-risk confirmation language.
+
 Try the bundled example:
 
 ```bash

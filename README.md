@@ -98,6 +98,17 @@ The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summar
 
 Use `--strict-warnings` for release or CI-style checks where warnings should block.
 
+Projects can add a `.hermes-codex.json` config when the base standard needs local tightening:
+
+```json
+{
+  "required_optional_docs": ["docs/SOURCE_POLICY.md"],
+  "placeholder_ignore_paths": ["docs/archive/**"]
+}
+```
+
+The doctor also accepts `--config /path/to/config.json`. Config can require additional files and suppress placeholder warnings for known archive areas. It cannot disable secret, token, private-path, or high-risk confirmation checks.
+
 To check skill installation without writing files:
 
 ```bash

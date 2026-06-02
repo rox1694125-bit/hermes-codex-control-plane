@@ -212,6 +212,8 @@ def command_doctor(args: argparse.Namespace) -> int:
         script_path("scripts", "check_control_plane.py"),
         args.project_path,
     ]
+    if args.config is not None:
+        command.extend(["--config", args.config])
     if args.json:
         command.append("--json")
     if args.strict_warnings:
@@ -283,6 +285,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = subparsers.add_parser("doctor", help="Check a target project against the 3+3 standard")
     doctor.add_argument("project_path", help="Project directory to check")
+    doctor.add_argument("--config", help="Optional project config JSON path")
     doctor.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     doctor.add_argument("--strict-warnings", action="store_true", help="Return exit 1 when warnings are present")
     doctor.set_defaults(func=command_doctor)
