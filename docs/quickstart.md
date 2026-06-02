@@ -81,7 +81,9 @@ python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
 For maintainers of this repository:
 
 ```bash
+python3 scripts/check_repo_package.py .
 python3 tests/test_check_control_plane.py
+python3 tests/test_check_repo_package.py
 ```
 
 ## 5. Start Codex

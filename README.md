@@ -82,6 +82,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
 - `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.
+- `scripts/check_repo_package.py`: verifies this public package has the expected docs, protocols, skills, examples, tests, and safety hygiene.
 - `tests/test_check_control_plane.py`: regression tests for pass, warning, failure, safety, JSON, and exit-code behavior.
 
 ## The 3+3 Project Standard
@@ -143,9 +144,12 @@ Run the local verifier and its regression tests before publishing changes:
 
 ```bash
 python3 -m py_compile scripts/check_control_plane.py tests/test_check_control_plane.py
+python3 -m py_compile scripts/check_repo_package.py tests/test_check_repo_package.py
+python3 scripts/check_repo_package.py .
 python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
 python3 scripts/check_control_plane.py templates/project-standard
 python3 tests/test_check_control_plane.py
+python3 tests/test_check_repo_package.py
 ```
 
 The tests use only the Python standard library.

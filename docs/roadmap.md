@@ -10,6 +10,7 @@ Goal: make the operating pattern understandable and reusable.
 - 3+3 project templates
 - Install/init scripts
 - Protocol Doctor v0.1 local verifier
+- Repo-level package linter
 - Sanitized example project
 - Clear high-risk confirmation rules
 
