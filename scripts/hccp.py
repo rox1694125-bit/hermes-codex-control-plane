@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
@@ -15,6 +16,47 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
 BUNDLED_SKILLS = ("hermes-project-operating-manual", "hermes-architecture")
+TEMPLATE_FILES = (
+    "AGENTS.md",
+    "PROJECT_BRIEF.md",
+    "WORKPLAN.md",
+    "docs/DECISIONS.md",
+    "docs/RISKS.md",
+)
+OPTIONAL_STANDARD_FILES = ("docs/SOURCE_POLICY.md", "docs/TERMS.md")
+TEMPLATE_DIRS = ("docs/project-log",)
+DOCUMENT_EXTENSIONS = {".md", ".markdown", ".txt"}
+SCAN_SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    ".cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".tox",
+    ".nox",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    "dist",
+    "build",
+    "coverage",
+}
+LEGACY_DOC_RULES = (
+    ("continuity", "PROJECT_BRIEF.md", "continuity docs should be summarized into the compact project brief"),
+    ("status", "PROJECT_BRIEF.md", "status docs usually belong in current state, capabilities, and next steps"),
+    ("workplan", "WORKPLAN.md", "workplan docs should become active tasks, tests, and required checks"),
+    ("roadmap", "WORKPLAN.md", "roadmap docs should become active or future work items"),
+    ("risk", "docs/RISKS.md", "risk docs should become active risks and confirmation rules"),
+    ("decision", "docs/DECISIONS.md", "decision logs should become durable decisions and rationale"),
+    ("adr", "docs/DECISIONS.md", "ADR files should become durable decisions and rationale"),
+    ("source", "docs/SOURCE_POLICY.md", "source rules should become source policy"),
+    ("policy", "docs/SOURCE_POLICY.md", "policy docs may belong in source or operating policy"),
+    ("term", "docs/TERMS.md", "terms docs should become the project glossary"),
+    ("glossary", "docs/TERMS.md", "glossary docs should become project terms"),
+)
 
 
 @dataclass
@@ -182,6 +224,132 @@ def skill_status_report() -> dict:
     }
 
 
+def rel(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def should_skip_scan(path: Path, root: Path) -> bool:
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        parts = path.parts
+    return any(part in SCAN_SKIP_DIRS for part in parts)
+
+
+def normalize_name(path: Path) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", path.stem.lower()).strip()
+
+
+def legacy_merge_plan(root: Path) -> list[dict]:
+    standard_paths = set(TEMPLATE_FILES) | set(OPTIONAL_STANDARD_FILES) | set(TEMPLATE_DIRS)
+    suggestions: list[dict] = []
+
+    for path in sorted(root.rglob("*"), key=lambda item: rel(item, root)):
+        if should_skip_scan(path, root) or not path.is_file():
+            continue
+        relative = rel(path, root)
+        if relative in standard_paths or path.suffix.lower() not in DOCUMENT_EXTENSIONS:
+            continue
+
+        normalized = normalize_name(path)
+        for keyword, target, reason in LEGACY_DOC_RULES:
+            if keyword in normalized:
+                suggestions.append(
+                    {
+                        "path": relative,
+                        "suggested_target": target,
+                        "reason": reason,
+                    }
+                )
+                break
+
+    return suggestions
+
+
+def init_preview_report(project_path: str, force: bool, include_merge_plan: bool) -> dict:
+    root = Path(project_path).expanduser().resolve()
+    if not root.exists():
+        return {
+            "ok": False,
+            "project_path": str(root),
+            "errors": [asdict(Finding("missing_project", f"Project directory does not exist: {root}", str(root)))],
+            "actions": [],
+            "legacy_docs": [],
+            "summary": {"errors": 1, "create": 0, "skip": 0, "overwrite": 0, "ensure_dir": 0, "legacy_docs": 0},
+        }
+    if not root.is_dir():
+        return {
+            "ok": False,
+            "project_path": str(root),
+            "errors": [asdict(Finding("not_a_directory", f"Project path is not a directory: {root}", str(root)))],
+            "actions": [],
+            "legacy_docs": [],
+            "summary": {"errors": 1, "create": 0, "skip": 0, "overwrite": 0, "ensure_dir": 0, "legacy_docs": 0},
+        }
+
+    actions: list[dict] = []
+    for file_rel in TEMPLATE_FILES:
+        destination = root / file_rel
+        if destination.exists() and force:
+            action = "overwrite"
+        elif destination.exists():
+            action = "skip"
+        else:
+            action = "create"
+        actions.append({"path": file_rel, "action": action, "type": "file"})
+
+    for dir_rel in TEMPLATE_DIRS:
+        actions.append({"path": dir_rel, "action": "ensure-dir", "type": "directory"})
+
+    legacy_docs = legacy_merge_plan(root) if include_merge_plan else []
+    summary = {
+        "errors": 0,
+        "create": sum(1 for item in actions if item["action"] == "create"),
+        "skip": sum(1 for item in actions if item["action"] == "skip"),
+        "overwrite": sum(1 for item in actions if item["action"] == "overwrite"),
+        "ensure_dir": sum(1 for item in actions if item["action"] == "ensure-dir"),
+        "legacy_docs": len(legacy_docs),
+    }
+    return {
+        "ok": True,
+        "project_path": str(root),
+        "errors": [],
+        "actions": actions,
+        "legacy_docs": legacy_docs,
+        "summary": summary,
+    }
+
+
+def print_init_preview(report: dict) -> None:
+    status = "PASS" if report["ok"] else "FAIL"
+    print(f"Hermes-Codex Init Preview: {status}")
+    print(f"Project: {report['project_path']}")
+    summary = report["summary"]
+    print(
+        "Actions: "
+        f"create {summary['create']}  skip {summary['skip']}  "
+        f"overwrite {summary['overwrite']}  ensure-dir {summary['ensure_dir']}"
+    )
+
+    if report["errors"]:
+        print("\nErrors")
+        for item in report["errors"]:
+            print(f"- {item['code']}: {item['message']}")
+        return
+
+    print("\nPlanned Actions")
+    for item in report["actions"]:
+        print(f"- {item['action']} [{item['type']}]: {item['path']}")
+
+    if report["legacy_docs"]:
+        print("\nLegacy Merge Plan")
+        for item in report["legacy_docs"]:
+            print(f"- {item['path']} -> {item['suggested_target']}: {item['reason']}")
+
+
 def print_skill_status(report: dict) -> None:
     status = "PASS" if report["ok"] else "FAIL"
     summary = report["summary"]
@@ -249,6 +417,17 @@ def command_demo(args: argparse.Namespace) -> int:
 
 
 def command_init(args: argparse.Namespace) -> int:
+    if args.dry_run or args.merge_plan or args.json:
+        if args.json and not (args.dry_run or args.merge_plan):
+            print("--json is only supported with init --dry-run or --merge-plan", file=sys.stderr)
+            return 2
+        report = init_preview_report(args.project_path, args.force, args.merge_plan)
+        if args.json:
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        else:
+            print_init_preview(report)
+        return 0 if report["ok"] else 2
+
     command = [
         script_path("scripts", "init_project_standard.sh"),
         args.project_path,
@@ -305,6 +484,9 @@ def build_parser() -> argparse.ArgumentParser:
     init = subparsers.add_parser("init", help="Initialize the 3+3 project standard in a project")
     init.add_argument("project_path", help="Project directory to initialize")
     init.add_argument("--force", action="store_true", help="Overwrite existing standard files")
+    init.add_argument("--dry-run", action="store_true", help="Preview initialization actions without writing files")
+    init.add_argument("--merge-plan", action="store_true", help="Preview likely legacy-doc merge targets without writing files")
+    init.add_argument("--json", action="store_true", help="Emit machine-readable JSON for --dry-run or --merge-plan")
     init.set_defaults(func=command_init)
 
     install_skills = subparsers.add_parser("install-skills", help="Install bundled Codex skills")

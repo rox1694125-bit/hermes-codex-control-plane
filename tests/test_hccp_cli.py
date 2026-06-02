@@ -102,6 +102,58 @@ class HccpCliTests(unittest.TestCase):
             self.assertTrue((project / "AGENTS.md").is_file())
             self.assertTrue((project / "docs" / "project-log").is_dir())
 
+    def test_init_dry_run_reports_actions_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            result = run_hccp("init", str(project), "--dry-run", "--json")
+
+            report = json.loads(result.stdout)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["summary"]["create"], 5)
+            self.assertEqual(report["summary"]["ensure_dir"], 1)
+            self.assertFalse((project / "AGENTS.md").exists())
+            self.assertFalse((project / "docs").exists())
+
+    def test_init_dry_run_force_reports_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            (project / "AGENTS.md").write_text("existing\n", encoding="utf-8")
+            result = run_hccp("init", str(project), "--dry-run", "--force", "--json")
+
+            report = json.loads(result.stdout)
+            actions = {item["path"]: item["action"] for item in report["actions"]}
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(actions["AGENTS.md"], "overwrite")
+            self.assertEqual(actions["PROJECT_BRIEF.md"], "create")
+            self.assertEqual((project / "AGENTS.md").read_text(encoding="utf-8"), "existing\n")
+
+    def test_init_merge_plan_detects_legacy_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            project.mkdir()
+            (project / "Project Continuity Brief.md").write_text("legacy continuity\n", encoding="utf-8")
+            (project / "Project Status.md").write_text("legacy status\n", encoding="utf-8")
+            docs = project / "docs"
+            docs.mkdir()
+            (docs / "Risk Register.md").write_text("legacy risk\n", encoding="utf-8")
+            (docs / "SOURCE_POLICY.md").write_text("canonical optional doc\n", encoding="utf-8")
+            result = run_hccp("init", str(project), "--merge-plan", "--json")
+
+            report = json.loads(result.stdout)
+            suggestions = {(item["path"], item["suggested_target"]) for item in report["legacy_docs"]}
+            suggested_paths = {item["path"] for item in report["legacy_docs"]}
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(("Project Continuity Brief.md", "PROJECT_BRIEF.md"), suggestions)
+            self.assertIn(("Project Status.md", "PROJECT_BRIEF.md"), suggestions)
+            self.assertIn(("docs/Risk Register.md", "docs/RISKS.md"), suggestions)
+            self.assertNotIn("docs/SOURCE_POLICY.md", suggested_paths)
+            self.assertFalse((project / "AGENTS.md").exists())
+
     def test_skill_status_reports_missing_skills(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             codex_home = Path(temp_dir) / "codex-home"

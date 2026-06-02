@@ -29,6 +29,16 @@ Restart Codex or start a fresh thread if your skill list is cached.
 
 ## 2. Initialize A Project
 
+Preview first:
+
+```bash
+python3 scripts/hccp.py init /path/to/project --dry-run --merge-plan
+```
+
+This writes nothing. It shows which standard files would be created, skipped, or overwritten, and lists likely legacy docs that should be summarized into the 3+3 files.
+
+Then initialize:
+
 ```bash
 python3 scripts/hccp.py init /path/to/project
 ```

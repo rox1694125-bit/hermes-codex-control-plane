@@ -71,8 +71,11 @@ python3 scripts/hccp.py skill-status
 Initialize the standard files in a project:
 
 ```bash
+python3 scripts/hccp.py init /path/to/your-project --dry-run --merge-plan
 python3 scripts/hccp.py init /path/to/your-project
 ```
+
+`--dry-run` previews which files would be created, skipped, or overwritten. `--merge-plan` scans likely legacy status, continuity, risk, decision, source, or glossary docs and suggests their 3+3 destination without writing files.
 
 Run the doctor before the first session:
 
