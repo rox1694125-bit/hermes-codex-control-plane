@@ -62,6 +62,12 @@ Install the Codex skills:
 python3 scripts/hccp.py install-skills
 ```
 
+Verify the installed skills:
+
+```bash
+python3 scripts/hccp.py skill-status
+```
+
 Initialize the standard files in a project:
 
 ```bash
@@ -92,6 +98,12 @@ The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summar
 
 Use `--strict-warnings` for release or CI-style checks where warnings should block.
 
+To check skill installation without writing files:
+
+```bash
+python3 scripts/hccp.py install-skills --check --json
+```
+
 Try the local runnable demo:
 
 ```bash
@@ -119,7 +131,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `docs/legacy-doc-mapping.md`: mapping table from legacy docs into the 3+3 standard.
 - `templates/project-standard/`: reusable project files.
 - `examples/knowledge-ingestion-agent/`: sanitized example project using the standard, with a local runnable ingestion demo.
-- `scripts/hccp.py`: unified CLI entrypoint for install, init, doctor, repo-doctor, and demo workflows.
+- `scripts/hccp.py`: unified CLI entrypoint for install, skill-status, init, doctor, repo-doctor, and demo workflows.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
 - `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.

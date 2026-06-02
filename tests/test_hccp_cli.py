@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -15,10 +16,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HCCP = REPO_ROOT / "scripts" / "hccp.py"
 
 
-def run_hccp(*args: str) -> subprocess.CompletedProcess[str]:
+def run_hccp(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(HCCP), *args],
         cwd=REPO_ROOT,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -26,6 +28,11 @@ def run_hccp(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 class HccpCliTests(unittest.TestCase):
+    def temp_codex_env(self, codex_home: Path) -> dict[str, str]:
+        env = os.environ.copy()
+        env["CODEX_HOME"] = str(codex_home)
+        return env
+
     def test_help_succeeds(self) -> None:
         result = run_hccp("--help")
 
@@ -78,6 +85,64 @@ class HccpCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertTrue((project / "AGENTS.md").is_file())
             self.assertTrue((project / "docs" / "project-log").is_dir())
+
+    def test_skill_status_reports_missing_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            codex_home = Path(temp_dir) / "codex-home"
+            result = run_hccp("skill-status", "--json", env=self.temp_codex_env(codex_home))
+
+            report = json.loads(result.stdout)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["summary"]["missing"], 2)
+            self.assertFalse((codex_home / "skills").exists())
+
+    def test_install_skills_check_reports_missing_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            codex_home = Path(temp_dir) / "codex-home"
+            result = run_hccp("install-skills", "--check", "--json", env=self.temp_codex_env(codex_home))
+
+            report = json.loads(result.stdout)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["summary"]["missing"], 2)
+            self.assertFalse((codex_home / "skills").exists())
+
+    def test_install_skills_then_status_reports_current(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            codex_home = Path(temp_dir) / "codex-home"
+            env = self.temp_codex_env(codex_home)
+
+            install = run_hccp("install-skills", env=env)
+            status = run_hccp("skill-status", "--json", env=env)
+
+            report = json.loads(status.stdout)
+            self.assertEqual(install.returncode, 0, install.stdout + install.stderr)
+            self.assertEqual(status.returncode, 0, status.stdout + status.stderr)
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["summary"]["current"], 2)
+            self.assertEqual(report["errors"], [])
+
+    def test_skill_status_detects_outdated_installed_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            codex_home = Path(temp_dir) / "codex-home"
+            env = self.temp_codex_env(codex_home)
+
+            install = run_hccp("install-skills", env=env)
+            skill_file = codex_home / "skills" / "hermes-architecture" / "SKILL.md"
+            content = skill_file.read_text(encoding="utf-8")
+            skill_file.write_text(content.replace("version: 0.6", "version: 0.1", 1), encoding="utf-8")
+            status = run_hccp("skill-status", "--json", env=env)
+
+            report = json.loads(status.stdout)
+            error_codes = {item["code"] for item in report["errors"]}
+            skill_statuses = {item["name"]: item["status"] for item in report["skills"]}
+
+            self.assertEqual(install.returncode, 0, install.stdout + install.stderr)
+            self.assertEqual(status.returncode, 1, status.stdout + status.stderr)
+            self.assertFalse(report["ok"])
+            self.assertIn("installed_skill_mismatch", error_codes)
+            self.assertEqual(skill_statuses["hermes-architecture"], "mismatch")
 
 
 if __name__ == "__main__":

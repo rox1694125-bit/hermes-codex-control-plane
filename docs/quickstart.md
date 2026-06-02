@@ -13,6 +13,18 @@ This installs:
 - `hermes-project-operating-manual`
 - `hermes-architecture`
 
+Check the installation:
+
+```bash
+python3 scripts/hccp.py skill-status
+```
+
+`PASS` means the bundled skill metadata matches the installed `SKILL.md` files. `FAIL` means a skill is missing or the installed metadata is stale. To check without writing files, use:
+
+```bash
+python3 scripts/hccp.py install-skills --check --json
+```
+
 Restart Codex or start a fresh thread if your skill list is cached.
 
 ## 2. Initialize A Project
