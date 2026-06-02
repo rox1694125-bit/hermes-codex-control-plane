@@ -34,6 +34,8 @@ docs/project-log/
 
 Use `--force` only when you intentionally want to overwrite existing files.
 
+Migrating an existing project with older status or continuity docs? Read `docs/migration-guide.md` before forcing overwrites.
+
 ## 3. Customize The Files
 
 Edit:
@@ -55,7 +57,7 @@ Use the target project path. Do not run this command on the repository root unle
 Expected behavior:
 
 - `PASS`: no errors or warnings were found.
-- `WARN`: placeholders, empty logs, or missing optional docs; useful to fix, but they do not fail and exit `0` by default.
+- `WARN`: placeholders or empty logs; useful to fix, but they do not fail and exit `0` by default.
 - `FAIL`: required files, required sections, high-risk confirmation language, or safety hygiene need attention.
 
 Exit codes:

@@ -39,6 +39,7 @@ agent-skills
 
 - [ ] README explains the control-plane pattern in under 3 minutes.
 - [ ] Architecture map explains the control-plane/runtime boundary.
+- [ ] Migration guide explains how to adopt 3+3 from older project docs.
 - [ ] No private paths, names, credentials, profile details, or project-specific secrets.
 - [ ] Skills are concise and reusable.
 - [ ] Templates are generic and safe to copy.
@@ -79,5 +80,5 @@ v0.1.0 - Public control-plane pattern
 Release note:
 
 ```text
-Initial public package with Codex skills, Hermes/Codex development-control-plane protocol, multi-agent contract, architecture map, 3+3 project templates, install/init scripts, and a sanitized knowledge-ingestion example.
+Initial public package with Codex skills, Hermes/Codex development-control-plane protocol, multi-agent contract, architecture map, migration guide, 3+3 project templates, install/init scripts, and a sanitized knowledge-ingestion example.
 ```

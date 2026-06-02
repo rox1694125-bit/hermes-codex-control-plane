@@ -69,8 +69,22 @@ class ControlPlaneDoctorTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertEqual(report["errors"], [])
         self.assertIn("placeholder", warning_codes)
-        self.assertIn("missing_optional_doc", warning_codes)
         self.assertGreater(report["summary"]["warnings"], 0)
+
+    def test_optional_docs_are_not_required(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            (project / "docs" / "SOURCE_POLICY.md").unlink()
+            (project / "docs" / "TERMS.md").unlink()
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["warnings"], [])
 
     def test_warning_project_reports_warn_status_in_human_output(self) -> None:
         result = run_doctor(FIXTURES / "warn-template-project")

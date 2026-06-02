@@ -28,7 +28,7 @@ Goal: make the standard verifier trustworthy without adding dependencies.
 
 Goal: help existing agent projects adopt the standard.
 
-- Migration checklist
+- Migration checklist and guide
 - Legacy-doc mapping guide
 - Examples for content ingestion, support bots, and internal tooling agents
 

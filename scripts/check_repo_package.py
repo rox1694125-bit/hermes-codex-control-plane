@@ -22,6 +22,8 @@ REQUIRED_FILES = (
     ".gitignore",
     "docs/quickstart.md",
     "docs/architecture.md",
+    "docs/migration-guide.md",
+    "docs/legacy-doc-mapping.md",
     "docs/roadmap.md",
     "docs/github-publication.md",
     "docs/positioning.md",
@@ -61,6 +63,8 @@ README_REFERENCES = (
     "scripts/check_control_plane.py",
     "scripts/check_repo_package.py",
     "docs/architecture.md",
+    "docs/migration-guide.md",
+    "docs/legacy-doc-mapping.md",
     "templates/project-standard",
     "examples/knowledge-ingestion-agent",
 )

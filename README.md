@@ -10,6 +10,7 @@ What is included:
 - A 3+3 project file standard that keeps model startup context small.
 - A Protocol Doctor for target projects and a repo linter for this public package.
 - A local runnable demo that proves the pattern without network calls or runtime side effects.
+- Migration guides for moving existing Hermes projects into the 3+3 standard.
 - Human-readable protocols for planning, high-risk confirmation, and multi-agent development.
 
 The core split:
@@ -113,6 +114,8 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `protocols/hermes-development-control-plane.md`: human-readable operating protocol.
 - `protocols/multi-agent-contract.md`: explorer / worker / verifier contract for Codex subagents.
 - `docs/architecture.md`: control-plane/runtime architecture map.
+- `docs/migration-guide.md`: step-by-step guide for migrating existing projects.
+- `docs/legacy-doc-mapping.md`: mapping table from legacy docs into the 3+3 standard.
 - `templates/project-standard/`: reusable project files.
 - `examples/knowledge-ingestion-agent/`: sanitized example project using the standard, with a local runnable ingestion demo.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.

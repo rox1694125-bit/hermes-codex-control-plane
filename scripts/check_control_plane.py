@@ -20,7 +20,6 @@ REQUIRED_FILES = (
     "docs/RISKS.md",
 )
 REQUIRED_DIRS = ("docs/project-log",)
-OPTIONAL_DOCS = ("docs/SOURCE_POLICY.md", "docs/TERMS.md")
 
 SKIP_DIRS = {
     ".git",
@@ -124,10 +123,6 @@ def check_structure(root: Path, errors: list[Finding], warnings: list[Finding]) 
             errors.append(Finding("missing_required_dir", f"Missing required directory: {dir_rel}", dir_rel))
         elif not any(path.iterdir()):
             warnings.append(Finding("empty_project_log", f"Directory is empty: {dir_rel}", dir_rel))
-
-    for doc_rel in OPTIONAL_DOCS:
-        if not (root / doc_rel).is_file():
-            warnings.append(Finding("missing_optional_doc", f"Optional doc is missing: {doc_rel}", doc_rel))
 
 
 def check_content(root: Path, errors: list[Finding], warnings: list[Finding]) -> None:
