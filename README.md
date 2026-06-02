@@ -41,6 +41,14 @@ Initialize the standard files in a project:
 ./scripts/init_project_standard.sh /path/to/your-project
 ```
 
+Run the doctor before the first session:
+
+```bash
+python3 scripts/check_control_plane.py /path/to/your-project
+```
+
+`PASS` means the required 3+3 shape is present. `Warnings` point to placeholders, empty logs, or optional docs. `FAIL` means required files, required sections, or safety hygiene need attention before Codex treats the project as ready.
+
 Then start a Codex session with:
 
 ```text
@@ -59,6 +67,7 @@ This trigger phrase means Codex may load the relevant skills and use subagents w
 - `examples/knowledge-ingestion-agent/`: sanitized example project using the standard.
 - `scripts/install_codex_skills.sh`: installs skills into `~/.codex/skills`.
 - `scripts/init_project_standard.sh`: initializes project files without overwriting by default.
+- `scripts/check_control_plane.py`: verifies the 3+3 structure, required sections, and obvious safety issues.
 
 ## The 3+3 Project Standard
 
@@ -108,9 +117,10 @@ It is an operating pattern and starter kit.
 
 1. Install the skills.
 2. Initialize one non-critical project with the 3+3 standard.
-3. Run several real development sessions using the trigger phrase.
-4. Adjust the templates to your organization.
-5. Only then migrate older, more complex projects.
+3. Run the doctor and fix any failures.
+4. Run several real development sessions using the trigger phrase.
+5. Adjust the templates to your organization.
+6. Only then migrate older, more complex projects.
 
 ## Status
 

@@ -44,7 +44,25 @@ Edit:
 
 Keep them short. Move history and rationale into `docs/DECISIONS.md` and `docs/project-log/`.
 
-## 4. Start Codex
+## 4. Run The Doctor
+
+```bash
+python3 scripts/check_control_plane.py /path/to/project
+```
+
+Expected behavior:
+
+- `PASS`: no required errors were found.
+- `Warnings`: placeholders, empty logs, or missing optional docs; useful to fix, but they do not fail.
+- `FAIL`: required files, required sections, high-risk confirmation language, or safety hygiene need attention.
+
+For agent/CI consumers:
+
+```bash
+python3 scripts/check_control_plane.py /path/to/project --json
+```
+
+## 5. Start Codex
 
 Use:
 
@@ -54,7 +72,7 @@ Use:
 
 Codex should load the operating manual skill, read the project startup files, decide whether `hermes-architecture` is needed, and plan before editing.
 
-## 5. Use Multi-Agent Carefully
+## 6. Use Multi-Agent Carefully
 
 The trigger phrase grants permission to use Codex subagents when useful. It does not bypass planning or confirmation.
 
@@ -64,4 +82,3 @@ Use subagents after:
 - test scenarios are defined;
 - file ownership is clear;
 - high-risk actions are identified.
-

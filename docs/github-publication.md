@@ -43,6 +43,7 @@ agent-skills
 - [ ] Templates are generic and safe to copy.
 - [ ] Example project is sanitized.
 - [ ] Scripts do not write outside expected target paths.
+- [ ] Protocol Doctor passes on `examples/knowledge-ingestion-agent`.
 - [ ] License is present.
 - [ ] GitHub description and topics are set.
 - [ ] First public commit is reviewed before pushing.
@@ -77,4 +78,3 @@ Release note:
 ```text
 Initial public package with Codex skills, Hermes/Codex development-control-plane protocol, multi-agent contract, 3+3 project templates, install/init scripts, and a sanitized knowledge-ingestion example.
 ```
-

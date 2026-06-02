@@ -18,7 +18,7 @@ Read:
 
 1. `PROJECT_BRIEF.md`
 2. `WORKPLAN.md`
-3. latest `docs/project-log/YYYY-MM-DD.md` if present
+3. latest dated file in `docs/project-log/` if present
 
 Read as needed:
 
@@ -44,4 +44,3 @@ Example checks:
 python3 scripts/check_project.py
 python3 scripts/build_indexes.py --check
 ```
-

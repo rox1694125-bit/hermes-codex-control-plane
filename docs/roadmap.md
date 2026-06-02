@@ -9,6 +9,7 @@ Goal: make the operating pattern understandable and reusable.
 - Human-readable protocols
 - 3+3 project templates
 - Install/init scripts
+- Protocol Doctor v0.1 local verifier
 - Sanitized example project
 - Clear high-risk confirmation rules
 
@@ -18,7 +19,6 @@ Goal: help existing agent projects adopt the standard.
 
 - Migration checklist
 - Legacy-doc mapping guide
-- Optional lint/check script for 3+3 completeness
 - Examples for content ingestion, support bots, and internal tooling agents
 
 ## v0.3: Runtime Integration Patterns
@@ -38,4 +38,4 @@ Goal: test whether the protocol actually improves agent work.
 - Expected context-loading behavior
 - Multi-agent prompt evaluations
 - Regression checks for template drift
-
+- GitHub Actions integration for the Protocol Doctor
