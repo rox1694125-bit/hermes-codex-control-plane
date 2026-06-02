@@ -1,0 +1,52 @@
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.token
+secrets/
+credentials/
+
+# Runtime/cache output
+*.log
+logs/
+tmp/
+temp/
+.cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+
+# Dependency/build output
+node_modules/
+.venv/
+venv/
+dist/
+build/
+coverage/
+
+# Local Codex/Hermes runtime state should not be committed here
+.codex/
+.hermes/
+profiles/
+memories/
+sessions/
+kanban.db
+*.sqlite
+*.sqlite3
+
