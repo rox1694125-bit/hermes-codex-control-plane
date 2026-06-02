@@ -54,14 +54,14 @@ Use the target project path. Do not run this command on the repository root unle
 
 Expected behavior:
 
-- `PASS`: no required errors were found.
-- `Warnings`: placeholders, empty logs, or missing optional docs; useful to fix, but they do not fail and exit `0`.
+- `PASS`: no errors or warnings were found.
+- `WARN`: placeholders, empty logs, or missing optional docs; useful to fix, but they do not fail and exit `0` by default.
 - `FAIL`: required files, required sections, high-risk confirmation language, or safety hygiene need attention.
 
 Exit codes:
 
-- `0`: no errors, including warning-only projects;
-- `1`: validation errors;
+- `0`: no errors, including warning-only projects by default;
+- `1`: validation errors, or warnings when `--strict-warnings` is used;
 - `2`: usage or project-path errors.
 
 For agent/CI consumers:
@@ -70,7 +70,9 @@ For agent/CI consumers:
 python3 scripts/check_control_plane.py /path/to/project --json
 ```
 
-The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`.
+The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`. `ok` means there are no validation errors; under `--strict-warnings`, warning-only reports still have `ok: true` but the process exits `1`.
+
+Use `--strict-warnings` when warnings should block a release or CI-style check.
 
 Try the bundled example:
 
@@ -81,7 +83,7 @@ python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
 For maintainers of this repository:
 
 ```bash
-python3 scripts/check_repo_package.py .
+python3 scripts/check_repo_package.py . --strict-warnings
 python3 tests/test_check_control_plane.py
 python3 tests/test_check_repo_package.py
 ```

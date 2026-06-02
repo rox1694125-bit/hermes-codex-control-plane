@@ -47,12 +47,12 @@ Run the doctor before the first session:
 python3 scripts/check_control_plane.py /path/to/your-project
 ```
 
-Point the doctor at the target project directory, not this repository root. `PASS` means the required 3+3 shape is present. `Warnings` point to placeholders, empty logs, or optional docs and still exit `0`. `FAIL` means required files, required sections, or safety hygiene need attention before Codex treats the project as ready.
+Point the doctor at the target project directory, not this repository root. `PASS` means no errors or warnings. `WARN` means warnings were found but no errors. `FAIL` means required files, required sections, or safety hygiene need attention before Codex treats the project as ready.
 
 Exit codes:
 
-- `0`: no errors, including warning-only projects;
-- `1`: validation errors;
+- `0`: no errors, including warning-only projects by default;
+- `1`: validation errors, or warnings when `--strict-warnings` is used;
 - `2`: usage or project-path errors.
 
 For JSON output:
@@ -61,7 +61,9 @@ For JSON output:
 python3 scripts/check_control_plane.py /path/to/your-project --json
 ```
 
-The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`.
+The JSON report includes `ok`, `project_path`, `errors`, `warnings`, and `summary`. `ok` means there are no validation errors; under `--strict-warnings`, warning-only reports still have `ok: true` but the process exits `1`.
+
+Use `--strict-warnings` for release or CI-style checks where warnings should block.
 
 Then start a Codex session with:
 
@@ -145,7 +147,7 @@ Run the local verifier and its regression tests before publishing changes:
 ```bash
 python3 -m py_compile scripts/check_control_plane.py tests/test_check_control_plane.py
 python3 -m py_compile scripts/check_repo_package.py tests/test_check_repo_package.py
-python3 scripts/check_repo_package.py .
+python3 scripts/check_repo_package.py . --strict-warnings
 python3 scripts/check_control_plane.py examples/knowledge-ingestion-agent
 python3 scripts/check_control_plane.py templates/project-standard
 python3 tests/test_check_control_plane.py

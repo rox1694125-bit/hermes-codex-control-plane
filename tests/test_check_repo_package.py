@@ -39,13 +39,68 @@ def assert_report_shape(test_case: unittest.TestCase, report: dict) -> None:
 
 class RepoPackageLinterTests(unittest.TestCase):
     def test_current_repo_passes(self) -> None:
-        result = run_linter(REPO_ROOT, "--json")
+        result = run_linter(REPO_ROOT, "--strict-warnings", "--json")
         report = parse_json(result)
 
         assert_report_shape(self, report)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue(report["ok"])
         self.assertEqual(report["errors"], [])
+        self.assertEqual(report["warnings"], [])
+
+    def test_strict_warnings_clean_repo_returns_zero(self) -> None:
+        result = run_linter(REPO_ROOT, "--strict-warnings", "--json")
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["warnings"], [])
+
+    def test_warning_only_repo_does_not_fail_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            brief = repo / "examples" / "knowledge-ingestion-agent" / "PROJECT_BRIEF.md"
+            brief.write_text(brief.read_text(encoding="utf-8") + "\n\n<temporary warning>\n", encoding="utf-8")
+
+            result = run_linter(repo, "--json")
+
+        report = parse_json(result)
+        warning_codes = {item["code"] for item in report["warnings"]}
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+        self.assertIn("example_doctor_warned", warning_codes)
+        self.assertGreater(report["summary"]["warnings"], 0)
+
+    def test_warning_only_repo_reports_warn_status_in_human_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            brief = repo / "examples" / "knowledge-ingestion-agent" / "PROJECT_BRIEF.md"
+            brief.write_text(brief.read_text(encoding="utf-8") + "\n\n<temporary warning>\n", encoding="utf-8")
+
+            result = run_linter(repo)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Hermes-Codex Repo Linter: WARN", result.stdout)
+        self.assertIn("Warnings", result.stdout)
+
+    def test_strict_warnings_returns_exit_one(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            brief = repo / "examples" / "knowledge-ingestion-agent" / "PROJECT_BRIEF.md"
+            brief.write_text(brief.read_text(encoding="utf-8") + "\n\n<temporary warning>\n", encoding="utf-8")
+
+            result = run_linter(repo, "--strict-warnings", "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertGreater(report["summary"]["warnings"], 0)
 
     def test_missing_required_file_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

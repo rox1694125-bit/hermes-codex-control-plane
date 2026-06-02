@@ -257,7 +257,9 @@ def run_check(project_path: Path) -> dict:
 
 
 def print_human(report: dict) -> None:
-    status = "PASS" if report["ok"] else "FAIL"
+    status = "FAIL"
+    if report["ok"]:
+        status = "WARN" if report["warnings"] else "PASS"
     summary = report["summary"]
     print(f"Hermes-Codex Control Plane Doctor: {status}")
     print(f"Project: {report['project_path']}")
@@ -282,6 +284,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("project_path", help="Project directory to check")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
+    parser.add_argument("--strict-warnings", action="store_true", help="Return exit 1 when warnings are present")
     return parser.parse_args(argv)
 
 
@@ -299,7 +302,7 @@ def main(argv: list[str]) -> int:
 
     argument_error_codes = {"missing_project", "not_a_directory"}
     if report["ok"]:
-        return 0
+        return 1 if args.strict_warnings and report["warnings"] else 0
     if any(item["code"] in argument_error_codes for item in report["errors"]):
         return 2
     return 1

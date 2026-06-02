@@ -51,6 +51,14 @@ class ControlPlaneDoctorTests(unittest.TestCase):
         self.assertEqual(report["summary"], {"errors": 0, "warnings": 0})
         self.assertIn("project_path", report)
 
+    def test_strict_warnings_clean_project_returns_zero(self) -> None:
+        result = run_doctor(FIXTURES / "pass-project", "--strict-warnings", "--json")
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["warnings"], [])
+
     def test_warning_project_does_not_fail(self) -> None:
         result = run_doctor(FIXTURES / "warn-template-project", "--json")
         report = parse_json(result)
@@ -64,6 +72,21 @@ class ControlPlaneDoctorTests(unittest.TestCase):
         self.assertIn("missing_optional_doc", warning_codes)
         self.assertGreater(report["summary"]["warnings"], 0)
 
+    def test_warning_project_reports_warn_status_in_human_output(self) -> None:
+        result = run_doctor(FIXTURES / "warn-template-project")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Hermes-Codex Control Plane Doctor: WARN", result.stdout)
+        self.assertIn("Warnings", result.stdout)
+
+    def test_strict_warnings_returns_exit_one(self) -> None:
+        result = run_doctor(FIXTURES / "warn-template-project", "--strict-warnings", "--json")
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertGreater(report["summary"]["warnings"], 0)
+
     def test_missing_required_file_fails_with_exit_one(self) -> None:
         result = run_doctor(FIXTURES / "fail-missing-workplan", "--json")
         report = parse_json(result)
@@ -72,6 +95,12 @@ class ControlPlaneDoctorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertFalse(report["ok"])
         self.assertIn(("missing_required_file", "WORKPLAN.md"), errors)
+
+    def test_errors_take_precedence_over_warnings_in_human_output(self) -> None:
+        result = run_doctor(FIXTURES / "fail-missing-workplan")
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Hermes-Codex Control Plane Doctor: FAIL", result.stdout)
 
     def test_safety_scan_catches_generated_private_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
