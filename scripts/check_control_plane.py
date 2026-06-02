@@ -40,18 +40,60 @@ SKIP_DIRS = {
     "build",
     "coverage",
 }
+SKIP_FILES = {".DS_Store", "Thumbs.db"}
+BINARY_EXTENSIONS = {
+    ".7z",
+    ".avif",
+    ".db",
+    ".doc",
+    ".docx",
+    ".gif",
+    ".heic",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".key",
+    ".m4a",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".numbers",
+    ".pages",
+    ".pdf",
+    ".png",
+    ".ppt",
+    ".pptx",
+    ".sqlite",
+    ".sqlite3",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".xls",
+    ".xlsx",
+    ".zip",
+}
+TEXT_SAMPLE_BYTES = 8192
 SECRET_DIRS = {"secrets", "credentials"}
+SECRET_FILE_SUFFIXES = (".pem", ".key", ".p12", ".pfx", ".crt", ".token")
 ALLOWED_ENV_FILES = {".env.example"}
 
 PLACEHOLDER_RE = re.compile(r"<[^>\n]+>|YYYY-MM-DD")
-PRIVATE_PATH_RE = re.compile(r"/(?:Users|Volumes)/[^/\s`)]+/[^\s`)]+")
+PRIVATE_PATH_RE = re.compile(r"/(?:Users|Volumes)/[^/\s`),\]}\"]+/[^\s`),\]}\"]+")
 TOKEN_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{16,}\b"),
     re.compile(r"\bgho_[A-Za-z0-9_]{16,}\b"),
 )
 DEFAULT_CONFIG = ".hermes-codex.json"
-CONFIG_KEYS = {"required_files", "required_optional_docs", "placeholder_ignore_paths"}
+CONFIG_KEYS = {
+    "required_files",
+    "required_optional_docs",
+    "placeholder_ignore_paths",
+    "text_scan_ignore_paths",
+    "allowed_private_path_prefixes",
+}
+CORE_TEXT_SCAN_FILES = {"AGENTS.md", "PROJECT_BRIEF.md", "WORKPLAN.md", "docs/DECISIONS.md", "docs/RISKS.md"}
 
 
 @dataclass
@@ -81,6 +123,16 @@ def validate_relative_path(value: str, key: str) -> str | None:
         return f"{key} entries must be relative paths: {value}"
     if ".." in path.parts:
         return f"{key} entries must not contain '..': {value}"
+    return None
+
+
+def validate_private_path_prefix(value: str) -> str | None:
+    if "\n" in value or "\r" in value:
+        return f"allowed_private_path_prefixes entries must be single-line paths: {value!r}"
+    if not value.startswith(("/Users/", "/Volumes/")):
+        return f"allowed_private_path_prefixes entries must start with /Users/ or /Volumes/: {value}"
+    if len(Path(value).parts) < 4:
+        return f"allowed_private_path_prefixes entries must be specific project-level prefixes: {value}"
     return None
 
 
@@ -114,8 +166,10 @@ def load_config(root: Path, config_arg: str | None) -> tuple[dict, Finding | Non
         "required_files": [],
         "required_optional_docs": [],
         "placeholder_ignore_paths": [],
+        "text_scan_ignore_paths": [],
+        "allowed_private_path_prefixes": [],
     }
-    for key in normalized:
+    for key in ("required_files", "required_optional_docs", "placeholder_ignore_paths", "text_scan_ignore_paths"):
         value = data.get(key, [])
         if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
             return {}, Finding("invalid_config", f"{key} must be a list of strings", str(config_path))
@@ -125,12 +179,26 @@ def load_config(root: Path, config_arg: str | None) -> tuple[dict, Finding | Non
                 return {}, Finding("invalid_config", error, str(config_path))
         normalized[key] = value
 
+    private_prefixes = data.get("allowed_private_path_prefixes", [])
+    if not isinstance(private_prefixes, list) or not all(isinstance(item, str) for item in private_prefixes):
+        return {}, Finding("invalid_config", "allowed_private_path_prefixes must be a list of strings", str(config_path))
+    for item in private_prefixes:
+        error = validate_private_path_prefix(item)
+        if error:
+            return {}, Finding("invalid_config", error, str(config_path))
+    normalized["allowed_private_path_prefixes"] = private_prefixes
+
     return normalized, None
 
 
 def has_all(content: str, needles: Iterable[str]) -> list[str]:
     lowered = content.lower()
     return [needle for needle in needles if needle.lower() not in lowered]
+
+
+def has_section(content: str, section_names: Iterable[str]) -> bool:
+    lowered = content.lower()
+    return any(f"## {name}".lower() in lowered for name in section_names)
 
 
 def has_high_risk_confirmation(content: str) -> bool:
@@ -144,9 +212,11 @@ def has_high_risk_confirmation(content: str) -> bool:
         "explicit confirmation" in lowered
         or "require explicit" in lowered
         or "ask before" in lowered
+        or "ask jack before" in lowered
         or "ask for explicit" in lowered
         or "requires confirmation" in lowered
         or "require confirmation" in lowered
+        or re.search(r"ask\s+[a-z0-9_-]+\s+before", lowered) is not None
     )
     return has_risk and has_confirm
 
@@ -175,6 +245,39 @@ def path_matches(pattern: str, relative_path: str) -> bool:
 
 def is_placeholder_ignored(relative_path: str, config: dict) -> bool:
     return any(path_matches(pattern, relative_path) for pattern in config.get("placeholder_ignore_paths", []))
+
+
+def is_text_scan_ignored(relative_path: str, config: dict) -> bool:
+    if relative_path in CORE_TEXT_SCAN_FILES:
+        return False
+    return any(path_matches(pattern, relative_path) for pattern in config.get("text_scan_ignore_paths", []))
+
+
+def should_scan_text(path: Path) -> bool:
+    if path.name in SKIP_FILES:
+        return False
+    if path.suffix.lower() in BINARY_EXTENSIONS:
+        return False
+    try:
+        with path.open("rb") as handle:
+            sample = handle.read(TEXT_SAMPLE_BYTES)
+    except OSError:
+        return False
+    if b"\0" in sample:
+        return False
+    try:
+        sample.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def private_path_allowed(value: str, config: dict) -> bool:
+    for prefix in config.get("allowed_private_path_prefixes", []):
+        normalized = prefix.rstrip("/")
+        if value == normalized or value.startswith(f"{normalized}/"):
+            return True
+    return False
 
 
 def iter_project_files(root: Path) -> Iterable[Path]:
@@ -224,9 +327,16 @@ def check_content(root: Path, errors: list[Finding], warnings: list[Finding], co
     brief = root / "PROJECT_BRIEF.md"
     if brief.is_file():
         content = read_text(brief)
-        for section in ("One-Line State", "Scope", "Current Capabilities", "Current Next Steps", "Risk Summary"):
-            if f"## {section}".lower() not in content.lower():
-                errors.append(Finding("missing_section", f"PROJECT_BRIEF.md missing section: {section}", "PROJECT_BRIEF.md"))
+        section_groups = (
+            ("One-Line State",),
+            ("Scope", "Current Scope"),
+            ("Current Capabilities",),
+            ("Current Next Steps",),
+            ("Risk Summary",),
+        )
+        for section_group in section_groups:
+            if not has_section(content, section_group):
+                errors.append(Finding("missing_section", f"PROJECT_BRIEF.md missing section: {section_group[0]}", "PROJECT_BRIEF.md"))
 
     workplan = root / "WORKPLAN.md"
     if workplan.is_file():
@@ -252,7 +362,9 @@ def check_content(root: Path, errors: list[Finding], warnings: list[Finding], co
 
     for path in iter_project_files(root):
         relative = rel(path, root)
-        if is_placeholder_ignored(relative, config):
+        if is_placeholder_ignored(relative, config) or is_text_scan_ignored(relative, config):
+            continue
+        if not should_scan_text(path):
             continue
         try:
             content = read_text(path)
@@ -268,7 +380,7 @@ def check_content(root: Path, errors: list[Finding], warnings: list[Finding], co
             )
 
 
-def check_safety(root: Path, errors: list[Finding]) -> None:
+def check_safety(root: Path, errors: list[Finding], config: dict) -> None:
     for path in root.rglob("*"):
         if should_skip(path, root):
             continue
@@ -284,13 +396,19 @@ def check_safety(root: Path, errors: list[Finding]) -> None:
         name = path.name.lower()
         if (name == ".env" or name.startswith(".env.")) and name not in ALLOWED_ENV_FILES:
             errors.append(Finding("secret_file", f"Secret-bearing file should not be committed: {relative}", relative))
+        if name.endswith(SECRET_FILE_SUFFIXES):
+            errors.append(Finding("secret_file", f"Secret-bearing file should not be committed: {relative}", relative))
+
+        if is_text_scan_ignored(relative, config) or not should_scan_text(path):
+            continue
 
         try:
             content = read_text(path)
         except OSError:
             continue
 
-        if PRIVATE_PATH_RE.search(content):
+        private_path_matches = PRIVATE_PATH_RE.finditer(content)
+        if any(not private_path_allowed(match.group(0), config) for match in private_path_matches):
             errors.append(Finding("private_path", "Likely private local absolute path found", relative))
 
         for pattern in TOKEN_PATTERNS:
@@ -333,7 +451,7 @@ def run_check(project_path: Path, config_path: str | None = None) -> dict:
 
     check_structure(root, errors, warnings, config)
     check_content(root, errors, warnings, config)
-    check_safety(root, errors)
+    check_safety(root, errors, config)
 
     return {
         "ok": not errors,

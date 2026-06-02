@@ -112,11 +112,13 @@ Projects can add a `.hermes-codex.json` config when the base standard needs loca
 ```json
 {
   "required_optional_docs": ["docs/SOURCE_POLICY.md"],
-  "placeholder_ignore_paths": ["docs/archive/**"]
+  "placeholder_ignore_paths": ["docs/archive/**"],
+  "text_scan_ignore_paths": ["staging/**", "reports/**", "knowledge/generated/**"],
+  "allowed_private_path_prefixes": ["<specific private project path prefix>"]
 }
 ```
 
-The doctor also accepts `--config /path/to/config.json`. Config can require additional files and suppress placeholder warnings for known archive areas. It cannot disable secret, token, private-path, or high-risk confirmation checks.
+The doctor also accepts `--config /path/to/config.json`. Config can require additional files, suppress placeholder warnings for known archive areas, skip content scanning for generated/vendor/staging paths, and allow a specific private project path prefix in text docs. It cannot disable path-based secret checks for `.env`, secret directories, or credential-like files. Core startup files remain scanned even when a broad content ignore is configured.
 
 To check skill installation without writing files:
 

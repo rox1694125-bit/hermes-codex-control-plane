@@ -94,11 +94,45 @@ SKIP_DIRS = {
     "build",
     "coverage",
 }
+SKIP_FILES = {".DS_Store", "Thumbs.db"}
+BINARY_EXTENSIONS = {
+    ".7z",
+    ".avif",
+    ".db",
+    ".doc",
+    ".docx",
+    ".gif",
+    ".heic",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".key",
+    ".m4a",
+    ".mkv",
+    ".mov",
+    ".mp3",
+    ".mp4",
+    ".numbers",
+    ".pages",
+    ".pdf",
+    ".png",
+    ".ppt",
+    ".pptx",
+    ".sqlite",
+    ".sqlite3",
+    ".wav",
+    ".webm",
+    ".webp",
+    ".xls",
+    ".xlsx",
+    ".zip",
+}
+TEXT_SAMPLE_BYTES = 8192
 SECRET_DIRS = {"secrets", "credentials"}
 RUNTIME_STATE_DIRS = {"profiles", "memories", "sessions"}
 SECRET_FILE_SUFFIXES = (".pem", ".key", ".p12", ".pfx", ".crt", ".token")
 ALLOWED_ENV_FILES = {".env.example"}
-PRIVATE_PATH_RE = re.compile(r"/(?:Users|Volumes)/[^/\s`)]+/[^\s`)]+")
+PRIVATE_PATH_RE = re.compile(r"/(?:Users|Volumes)/[^/\s`),\]}\"]+/[^\s`),\]}\"]+")
 TOKEN_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{16,}\b"),
@@ -139,6 +173,25 @@ def should_skip(path: Path, root: Path) -> bool:
     if len(parts) >= 3 and parts[0] == "examples" and parts[2] == "demo-output":
         return True
     return any(part in SKIP_DIRS for part in parts)
+
+
+def should_scan_text(path: Path) -> bool:
+    if path.name in SKIP_FILES:
+        return False
+    if path.suffix.lower() in BINARY_EXTENSIONS:
+        return False
+    try:
+        with path.open("rb") as handle:
+            sample = handle.read(TEXT_SAMPLE_BYTES)
+    except OSError:
+        return False
+    if b"\0" in sample:
+        return False
+    try:
+        sample.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
 
 
 def iter_repo_files(root: Path) -> Iterable[Path]:
@@ -303,6 +356,9 @@ def check_safety(root: Path, errors: list[Finding]) -> None:
             errors.append(Finding("secret_file", f"Secret-bearing file should not be committed: {relative}", relative))
         if name.endswith(SECRET_FILE_SUFFIXES):
             errors.append(Finding("secret_file", f"Secret-bearing file should not be committed: {relative}", relative))
+
+        if not should_scan_text(path):
+            continue
 
         try:
             content = read_text(path)

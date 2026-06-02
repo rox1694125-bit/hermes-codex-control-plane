@@ -277,6 +277,25 @@ class RepoPackageLinterTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertEqual(report["errors"], [])
 
+    def test_system_noise_and_binary_assets_are_not_scanned_as_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir) / "repo"
+            shutil.copytree(REPO_ROOT, repo, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+            (repo / ".DS_Store").write_bytes(b"\x00<not-a-template>")
+            assets = repo / "assets"
+            assets.mkdir()
+            private_path = "/".join(("", "Users", "alice", "private", "project")).encode("utf-8")
+            fake_token = ("sk-" + "1234567890abcdef" + "1234567890abcdef").encode("utf-8")
+            (assets / "source.pdf").write_bytes(b"%PDF-1.7\n<not-a-template>\n" + private_path + b"\n" + fake_token)
+
+            result = run_linter(repo, "--strict-warnings", "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+
     def test_nested_demo_output_is_not_ignored_by_safety_scan(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir) / "repo"

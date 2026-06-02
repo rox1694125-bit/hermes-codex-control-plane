@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -164,6 +165,230 @@ class ControlPlaneDoctorTests(unittest.TestCase):
         self.assertFalse(report["ok"])
         self.assertIn("private_path", error_codes)
         self.assertNotIn("placeholder", warning_codes)
+
+    def test_text_scan_ignore_paths_skip_generated_text_content(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            generated = project / "reports" / "local-run"
+            generated.mkdir(parents=True)
+            private_path = "/".join(("", "Users", "alice", "private", "generated"))
+            fake_token = "sk-" + "1234567890abcdef" + "1234567890abcdef"
+            (generated / "report.md").write_text(f"{private_path}\n{fake_token}\n<draft>\n", encoding="utf-8")
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"text_scan_ignore_paths": ["reports/**"]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+        self.assertEqual(report["warnings"], [])
+
+    def test_text_scan_ignore_paths_do_not_hide_secret_file_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            generated = project / "reports"
+            generated.mkdir()
+            (generated / ".env").write_text("SECRET=local\n", encoding="utf-8")
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"text_scan_ignore_paths": ["reports/**"]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("secret_file", error_codes)
+
+    def test_text_scan_ignore_paths_do_not_hide_secret_file_suffixes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            generated = project / "reports"
+            generated.mkdir()
+            (generated / "client.key").write_bytes(b"\x00pretend-binary-key")
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"text_scan_ignore_paths": ["reports/**"]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+        errors = {(item["code"], item["path"]) for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn(("secret_file", "reports/client.key"), errors)
+
+    def test_text_scan_ignore_paths_do_not_hide_core_startup_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            private_path = "/".join(("", "Users", "alice", "private", "project"))
+            brief = project / "PROJECT_BRIEF.md"
+            brief.write_text(brief.read_text(encoding="utf-8") + f"\nLocal path: {private_path}\n", encoding="utf-8")
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"text_scan_ignore_paths": ["PROJECT_BRIEF.md", "**"]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("private_path", error_codes)
+
+    def test_text_scan_ignore_paths_do_not_hide_decisions_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            private_path = "/".join(("", "Users", "alice", "private", "project"))
+            decisions = project / "docs" / "DECISIONS.md"
+            decisions.write_text(decisions.read_text(encoding="utf-8") + f"\nLocal path: {private_path}\n", encoding="utf-8")
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"text_scan_ignore_paths": ["docs/**"]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("private_path", error_codes)
+
+    def test_allowed_private_path_prefixes_suppress_known_project_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            allowed_path = "/".join(("", "Volumes", "mySSD", "projects", "sample", "knowledge"))
+            brief = project / "PROJECT_BRIEF.md"
+            brief.write_text(brief.read_text(encoding="utf-8") + f"\nProject root: {allowed_path}\n", encoding="utf-8")
+            allowed_prefix = "/".join(("", "Volumes", "mySSD", "projects", "sample"))
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"allowed_private_path_prefixes": [allowed_prefix]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+
+    def test_allowed_private_path_prefixes_do_not_hide_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            allowed_path = "/".join(("", "Volumes", "mySSD", "projects", "sample", "knowledge"))
+            fake_token = "ghp_" + "1234567890abcdef" + "1234567890abcdef"
+            brief = project / "PROJECT_BRIEF.md"
+            brief.write_text(brief.read_text(encoding="utf-8") + f"\n{allowed_path}\n{fake_token}\n", encoding="utf-8")
+            allowed_prefix = "/".join(("", "Volumes", "mySSD", "projects", "sample"))
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"allowed_private_path_prefixes": [allowed_prefix]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+        error_codes = {item["code"] for item in report["errors"]}
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertIn("token_like_secret", error_codes)
+        self.assertNotIn("private_path", error_codes)
+
+    def test_allowed_private_path_prefixes_must_be_specific(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            broad_prefix = "/".join(("", "Users", "alice"))
+            (project / ".hermes-codex.json").write_text(
+                json.dumps({"allowed_private_path_prefixes": [broad_prefix]}),
+                encoding="utf-8",
+            )
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["errors"][0]["code"], "invalid_config")
+
+    def test_system_noise_and_binary_assets_are_not_scanned_as_text(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            (project / ".DS_Store").write_bytes(b"\x00<not-a-template>")
+            assets = project / "knowledge" / "assets"
+            assets.mkdir(parents=True)
+            private_path = "/".join(("", "Users", "alice", "private", "project")).encode("utf-8")
+            (assets / "source.pdf").write_bytes(b"%PDF-1.7\n<not-a-template>\n" + private_path)
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["errors"], [])
+        self.assertEqual(report["warnings"], [])
+
+    def test_current_scope_heading_satisfies_scope_section(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            brief = project / "PROJECT_BRIEF.md"
+            content = brief.read_text(encoding="utf-8").replace("## Scope", "## Current Scope", 1)
+            brief.write_text(content, encoding="utf-8")
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
+
+    def test_ask_jack_before_satisfies_high_risk_confirmation_language(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project = Path(temp_dir) / "project"
+            shutil.copytree(FIXTURES / "pass-project", project)
+            agents = project / "AGENTS.md"
+            content = agents.read_text(encoding="utf-8")
+            content = re.sub(
+                r"High-risk actions require explicit confirmation before proceeding\.",
+                "For high-risk actions, ask Jack before proceeding.",
+                content,
+            )
+            agents.write_text(content, encoding="utf-8")
+
+            result = run_doctor(project, "--json")
+
+        report = parse_json(result)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(report["ok"])
 
     def test_malformed_config_is_usage_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

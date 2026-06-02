@@ -111,7 +111,9 @@ Optional project config:
 ```json
 {
   "required_optional_docs": ["docs/SOURCE_POLICY.md"],
-  "placeholder_ignore_paths": ["docs/archive/**"]
+  "placeholder_ignore_paths": ["docs/archive/**"],
+  "text_scan_ignore_paths": ["staging/**", "reports/**", "knowledge/generated/**"],
+  "allowed_private_path_prefixes": ["<specific private project path prefix>"]
 }
 ```
 
@@ -121,7 +123,7 @@ Save this as `.hermes-codex.json` in the project root, or pass it explicitly:
 python3 scripts/hccp.py doctor /path/to/project --config /path/to/config.json
 ```
 
-Config can require more files and suppress placeholder warnings for known archive paths. It cannot disable safety checks for secrets, tokens, private local paths, or high-risk confirmation language.
+Config can require more files, suppress placeholder warnings for known archive paths, skip content scanning for generated/vendor/staging paths, and allow a specific private project path prefix. It cannot disable path-based checks for `.env`, secret directories, or credential-like files. Core startup files are still scanned even when a broad content ignore is configured.
 
 Try the bundled example:
 
